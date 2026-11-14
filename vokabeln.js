@@ -352,6 +352,44 @@ const U2_BLASSGELB = [
 ];
 
 // ════════════════════════════════════════════════════════════
+//  DIS DONC ! UNITÉ 2 · Klassenwortschatz (grün), 5. Klasse
+//  Jemanden vorstellen und der Steckbrief
+// ════════════════════════════════════════════════════════════
+const U2_GRUEN = [
+  { fr: "voici / voilà", de: "hier ist / da ist" },
+  { fr: "il est, elle est", de: "er ist, sie ist" },
+  { fr: "Il est mon frère.", de: "Er ist mein Bruder." },
+  { fr: "Elle est ma soeur.", de: "Sie ist meine Schwester." },
+  { fr: "Lionel est le frère de Nathalie.", de: "Lionel ist der Bruder von Nathalie." },
+  { fr: "ils sont, elles sont", de: "sie sind" },
+  { fr: "Ils sont mes cousins.", de: "Sie sind meine Cousins." },
+  { fr: "Elles sont mes cousines.", de: "Sie sind meine Cousinen." },
+  { fr: "c'est", de: "das ist" },
+  { fr: "C'est ma famille.", de: "Das ist meine Familie." },
+  { fr: "ce sont", de: "das sind" },
+  { fr: "Ce sont mes grands-parents.", de: "Das sind meine Grosseltern." },
+  { fr: "Qui?", de: "Wer?" },
+  { fr: "il s'appelle, elle s'appelle", de: "er heisst, sie heisst" },
+  { fr: "Il s'appelle Louis.", de: "Er heisst Louis." },
+  { fr: "Elle s'appelle Cloé.", de: "Sie heisst Cloé." },
+  { fr: "la fiche personnelle", de: "der Steckbrief", art: 'une', nomen: 'fiche personnelle' },
+  { fr: "le nom", de: "der Name", art: 'un', nomen: 'nom' },
+  { fr: "le prénom", de: "der Vorname", art: 'un', nomen: 'prénom' },
+  { fr: "la langue", de: "die Sprache", art: 'une', nomen: 'langue' },
+  { fr: "Je parle allemand, français et anglais.", de: "Ich spreche Deutsch, Französisch und Englisch." },
+  { fr: "le sexe", de: "das Geschlecht", art: 'un', nomen: 'sexe' },
+  { fr: "l'âge (m)", de: "das Alter", art: 'un', nomen: 'âge' },
+  { fr: "une adresse", de: "eine Adresse", art: 'une', nomen: 'adresse' },
+  { fr: "le pays", de: "das Land", art: 'un', nomen: 'pays' },
+  { fr: "la signature", de: "die Unterschrift", art: 'une', nomen: 'signature' },
+  { fr: "le néerlandais", de: "Niederländisch", art: 'un', nomen: 'néerlandais' },
+  { fr: "le suédois", de: "Schwedisch", art: 'un', nomen: 'suédois' },
+  { fr: "l'italien (m)", de: "Italienisch", art: 'un', nomen: 'italien' },
+  { fr: "l'espagnol (m)", de: "Spanisch", art: 'un', nomen: 'espagnol' },
+  { fr: "le drapeau", de: "die Fahne", art: 'un', nomen: 'drapeau' },
+];
+
+// ════════════════════════════════════════════════════════════
 //  AUFBAU DES MENÜS
 // ════════════════════════════════════════════════════════════
 const QUIZ_DATEN = {
@@ -368,8 +406,10 @@ const QUIZ_DATEN = {
           typ: 'artikel', woerter: baueArtikel(U1_ROSA.concat(U1_LACHS)) },
         { id: 'fr5-u2-woerter', icon: '👪', titel: 'Unité 2 · Familie',
           typ: 'vokabeln', woerter: U2_BLASSGELB },
+        { id: 'fr5-u2-gruen', icon: '📇', titel: 'Unité 2 · Vorstellen & Steckbrief',
+          typ: 'vokabeln', woerter: U2_GRUEN },
         { id: 'fr5-u2-artikel', icon: '✏️', titel: 'Unité 2 · un / une',
-          typ: 'artikel', woerter: baueArtikel(U2_BLASSGELB) },
+          typ: 'artikel', woerter: baueArtikel(U2_BLASSGELB.concat(U2_GRUEN)) },
         { id: 'fr5-konjugation', icon: '💜', titel: 'Konjugation · -er-Verben',
           typ: 'konjugation', woerter: baueKonjugation(ER_VERBEN) },
         { id: 'fr5-zahlen', icon: '🔢', titel: 'Zahlen 1–1000',
