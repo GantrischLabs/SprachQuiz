@@ -758,7 +758,7 @@
   <!-- ══ QUIZ ══ -->
   <div id="quiz">
     <div class="player-bar">
-      <span class="level-badge" id="level-badge">⭐ Niv. 1</span>
+      <span class="level-badge" id="level-badge">🪄 1. Rang</span>
       <div class="xp-bar-wrap"><div class="xp-bar-fill" id="xp-bar-fill" style="width:0%"></div></div>
       <span class="xp-label" id="xp-label">0 / 50 XP</span>
     </div>
@@ -1128,15 +1128,29 @@ function untertitel(deck) {
   return `${n} Wörter` + (wann ? ` · ${wann}` : ' · neu');
 }
 
+
+// Im Menü genügt der kurze Deck-Name, die Gruppenzeile steht ja darüber.
+// In der Kopfzeile und auf der Weiter-üben-Karte fehlt der Zusammenhang –
+// dort kommt die Unité davor, sonst wäre "un / une" nicht eindeutig.
+function vollerTitel(deck) {
+  if (!deck.gruppe || !deck.gruppe.sprache) return deck.titel;
+  const einheit = deck.gruppe.titel.split(' · ').pop();
+  return `${einheit} · ${deck.titel}`;
+}
 function zeigeMenu() {
+  // Rang nur bei der ersten Gruppe einer Sprache zeigen – Französisch
+  // steht in mehreren Gruppen, viermal derselbe Rang wäre nur Lärm.
+  const rangGezeigt = new Set();
   document.getElementById('gruppen').innerHTML = QUIZ_DATEN.gruppen.map((g, gi) => {
-    const n = g.sprache ? niveauVon(g.sprache) : null;
+    const zeigeRang = g.sprache && !rangGezeigt.has(g.sprache);
+    if (zeigeRang) rangGezeigt.add(g.sprache);
+    const n = zeigeRang ? niveauVon(g.sprache) : null;
     return `
     <div class="group ${g.offen ? '' : 'closed'}" id="g${gi}">
       <button class="group-head" onclick="klappe(${gi})">
         <span class="dot" style="background:${g.farbe}"></span>
         <span class="title">${g.titel}</span>
-        ${n ? `<span class="niveau">⭐ Niv. ${n.idx + 1}</span>` : ''}
+        ${n ? `<span class="niveau">🪄 ${n.idx + 1}. Rang</span>` : ''}
         <span class="chev">▼</span>
       </button>
       <div class="deck-list">
@@ -1165,8 +1179,8 @@ function zeigeMenu() {
     const wann = stand && wannText(stand.zuletzt);
     const offen = laufendPasst(letztes.id, daten.letztes.modus);
     const unter = offen
-      ? `${letztes.titel} — Frage ${daten.laufend.index + 1} von ${daten.laufend.karten.length}`
-      : `${letztes.titel}${wann ? ' — ' + wann : ''}`;
+      ? `${vollerTitel(letztes)} — Frage ${daten.laufend.index + 1} von ${daten.laufend.karten.length}`
+      : `${vollerTitel(letztes)}${wann ? ' — ' + wann : ''}`;
     btn.innerHTML = `
       <span class="emoji">${offen ? '📜' : '⏱️'}</span>
       <span class="t"><b>${offen ? 'Runde fortsetzen' : 'Weiter üben'}</b><span>${unter}</span></span>
@@ -1213,7 +1227,7 @@ function oeffneDeck(id, modus) {
   speichere();
 
   document.body.classList.add('quiz');
-  document.getElementById('kopf').textContent = deck.titel;
+  document.getElementById('kopf').textContent = vollerTitel(deck);
   document.documentElement.style.setProperty('--c', deck.farbe);
   document.documentElement.style.setProperty('--cl', deck.hell);
   document.getElementById('autoread-toggle').checked = vorlesen;

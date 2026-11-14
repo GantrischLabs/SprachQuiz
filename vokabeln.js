@@ -391,25 +391,41 @@ const U2_GRUEN = [
 
 // ════════════════════════════════════════════════════════════
 //  AUFBAU DES MENÜS
+//  Eine Gruppe pro Unité. Neue Unité = einen Block kopieren und
+//  anpassen; offen: true bestimmt, was beim Start aufgeklappt ist.
 // ════════════════════════════════════════════════════════════
+const FR_FARBE = '#7b1f2b', FR_HELL = '#f0d9d2';
+
 const QUIZ_DATEN = {
   gruppen: [
     {
-      titel: 'Französisch · 5. Klasse',
-      sprache: 'fr', farbe: '#7b1f2b', hell: '#f0d9d2', offen: true,
+      titel: 'Französisch · Unité 1',
+      sprache: 'fr', farbe: FR_FARBE, hell: FR_HELL, offen: false,
       decks: [
-        { id: 'fr5-u1-woerter', icon: '📘', titel: 'Unité 1 · Klassenwortschatz',
+        { id: 'fr5-u1-woerter', icon: '📘', titel: 'Klassenwortschatz',
           typ: 'vokabeln', woerter: U1_ROSA },
-        { id: 'fr5-u1-lachs', icon: '📅', titel: 'Unité 1 · Wochentage & Tätigkeiten',
+        { id: 'fr5-u1-lachs', icon: '📅', titel: 'Wochentage & Tätigkeiten',
           typ: 'vokabeln', woerter: U1_LACHS },
-        { id: 'fr5-u1-artikel', icon: '✏️', titel: 'Unité 1 · un / une',
+        { id: 'fr5-u1-artikel', icon: '✏️', titel: 'un / une',
           typ: 'artikel', woerter: baueArtikel(U1_ROSA.concat(U1_LACHS)) },
-        { id: 'fr5-u2-woerter', icon: '👪', titel: 'Unité 2 · Familie',
+      ],
+    },
+    {
+      titel: 'Französisch · Unité 2',
+      sprache: 'fr', farbe: FR_FARBE, hell: FR_HELL, offen: true,
+      decks: [
+        { id: 'fr5-u2-woerter', icon: '👪', titel: 'Familie',
           typ: 'vokabeln', woerter: U2_BLASSGELB },
-        { id: 'fr5-u2-gruen', icon: '📇', titel: 'Unité 2 · Vorstellen & Steckbrief',
+        { id: 'fr5-u2-gruen', icon: '📇', titel: 'Vorstellen & Steckbrief',
           typ: 'vokabeln', woerter: U2_GRUEN },
-        { id: 'fr5-u2-artikel', icon: '✏️', titel: 'Unité 2 · un / une',
+        { id: 'fr5-u2-artikel', icon: '✏️', titel: 'un / une',
           typ: 'artikel', woerter: baueArtikel(U2_BLASSGELB.concat(U2_GRUEN)) },
+      ],
+    },
+    {
+      titel: 'Französisch · Übergreifend',
+      sprache: 'fr', farbe: FR_FARBE, hell: FR_HELL, offen: false,
+      decks: [
         { id: 'fr5-konjugation', icon: '💜', titel: 'Konjugation · -er-Verben',
           typ: 'konjugation', woerter: baueKonjugation(ER_VERBEN) },
         { id: 'fr5-zahlen', icon: '🔢', titel: 'Zahlen 1–1000',
@@ -429,14 +445,14 @@ const QUIZ_DATEN = {
       ],
     },
     {
-      titel: 'Englisch · 5. Klasse',
+      titel: 'Englisch · Unit 1',
       sprache: 'en', farbe: '#1d3a6e', hell: '#d8e0ee', offen: true,
       decks: [
-        { id: 'en5-preunit', icon: '📙', titel: 'Unit 1 · Pre-Unit',
+        { id: 'en5-preunit', icon: '📙', titel: 'Pre-Unit',
           typ: 'vokabeln', woerter: EN_PRE_UNIT },
-        { id: 'en5-u1-teil1', icon: '📗', titel: 'Unit 1 · Teil 1',
+        { id: 'en5-u1-teil1', icon: '📗', titel: 'Teil 1',
           typ: 'vokabeln', woerter: EN_U1_TEIL1 },
-        { id: 'en5-u1-teil2', icon: '📕', titel: 'Unit 1 · Teil 2',
+        { id: 'en5-u1-teil2', icon: '📕', titel: 'Teil 2',
           typ: 'vokabeln', woerter: EN_U1_TEIL2 },
       ],
     },
