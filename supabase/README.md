@@ -23,8 +23,8 @@ Solange `config.js` leer ist, läuft das Quiz genau wie bisher. Der Fortschritt 
    - *Redirect URLs*: dieselbe Adresse nochmals hinzufügen.
 
    Ohne diesen Schritt führen die Links in der Bestätigungs- und der Passwort-Mail ins Leere.
-4. **App verbinden:** Unter **Project Settings → API Keys** die **Project URL** und den **anon / publishable** Key in [`config.js`](../config.js) eintragen. Committen.
-   - Der anon/publishable Key darf öffentlich sein. Den **service_role / secret** Key **nie** eintragen.
+4. **App verbinden:** Die **Project URL** (unter **Project Settings → Data API**, Form `https://<projekt-id>.supabase.co`) und den **Publishable Key** (unter **Project Settings → API Keys**, beginnt mit `sb_publishable_`) in [`config.js`](../config.js) eintragen. Committen.
+   - Der Publishable Key darf öffentlich sein. Den **Secret Key** (`sb_secret_…`) und die alten Legacy-Keys (`anon`, `service_role`) **nicht** verwenden – die alten werden Ende 2026 abgeschaltet, der Secret Key umgeht alle Rechte.
 5. **Wach halten:** Gratis-Projekte pausieren nach 7 Tagen ohne Zugriff. Gerade in den Ferien kann das passieren. Der Workflow [`supabase-wach-halten.yml`](../.github/workflows/supabase-wach-halten.yml) fragt die Datenbank zweimal pro Woche an. Unter **Actions** einmal manuell starten (*Run workflow*) und prüfen, ob er grün wird.
 
 ## Wer darf ein Konto erstellen?
