@@ -150,6 +150,41 @@
   .resume .t span { font-size: 0.82rem; font-weight: 600; color: #b9a37a; }
   .resume .go { font-size: 1.2rem; color: var(--gold); }
 
+  /* ── HEUTE FÄLLIG ────────────────────────── */
+  .heute {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    text-align: left;
+    border: 1.5px solid var(--gold);
+    border-radius: var(--radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    color: #2a1c0c;
+    background: linear-gradient(135deg, #f0d48a, #c9a227 55%, #a8831c);
+    box-shadow: 0 0 26px rgba(201,162,39,0.35);
+  }
+  .heute:active { transform: scale(0.985); }
+  .heute .emoji { font-size: 1.9rem; }
+  .heute .t { flex: 1; min-width: 0; }
+  .heute .t b {
+    display: block;
+    font-family: 'Cinzel', Georgia, serif;
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+  .heute .t span { font-size: 0.86rem; font-weight: 600; color: #4a3410; }
+  .heute .go { font-size: 1.3rem; }
+  .heute.erledigt {
+    color: var(--gold-hell);
+    background: rgba(36,26,19,0.75);
+    border: 1px dashed rgba(201,162,39,0.45);
+    box-shadow: none;
+  }
+  .heute.erledigt .t span { color: #b9a37a; }
+  .heute.erledigt:active { transform: none; }
+
   .group { margin-bottom: 14px; }
 
   .group-head {
@@ -237,6 +272,18 @@
     color: var(--tinte);
   }
   .deck .txt span { font-size: 0.8rem; font-weight: 500; font-style: italic; color: var(--tinte-blass); }
+  /* Lernstand der Liste: Gold = sitzt, hell = unterwegs */
+  .deck .txt .lern { display: block; margin-top: 5px; font-style: normal; }
+  .deck .txt .lern-bar {
+    display: flex;
+    height: 6px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: rgba(120,90,40,0.18);
+  }
+  .deck .txt .lern-bar i { display: block; height: 100%; background: var(--gold); }
+  .deck .txt .lern-bar i.u { background: rgba(201,162,39,0.4); }
+  .deck .txt .lern-txt { display: block; margin-top: 2px; font-size: 0.72rem; font-style: normal; font-weight: 600; }
   .deck .ring {
     flex-shrink: 0;
     width: 34px; height: 34px;
@@ -500,6 +547,11 @@
     to   { opacity: 1; transform: scale(1); }
   }
   .feedback.correct { color: #2f7d4f; }
+  /* Stufe des Wortes nach der Antwort */
+  .stufe { min-height: 1.3em; margin-top: 2px; text-align: center; font-size: 0.82rem; font-weight: 600; color: var(--tinte-blass); }
+  .stufe .rauten { letter-spacing: 3px; color: #a8831c; }
+  .stufe.sitzt { color: #2f7d4f; }
+  .result-screen p.aufstieg { margin-bottom: 8px; font-style: normal; font-weight: 600; color: var(--gold-hell); }
   .feedback.wrong   { color: #a32b2b; }
 
   .next-btn-wrap { display: flex; justify-content: center; margin: 14px auto 0; }
@@ -840,6 +892,7 @@
   <!-- ══ STARTMENÜ ══ -->
   <div id="menu">
     <div id="konto-leiste"></div>
+    <button class="heute" id="heute-btn" style="display:none"></button>
     <button class="resume" id="resume-btn" style="display:none"></button>
     <div id="gruppen"></div>
     <div class="hinweis" id="hinweis"></div>
@@ -888,7 +941,11 @@ function speicherSchluessel() {
 
 function leereDaten() {
   return { version: 1, xp: { fr: 0, en: 0 }, decks: {}, fehler: [],
-           letztes: null, laufend: null, vorlesen: true };
+           letztes: null, laufend: null, vorlesen: true,
+           // Lernstand pro Wort: woerter[deckId][schluessel] = { s: Stufe 0–5, f: fällig ab Tag, t: Tag des letzten Fehlers }
+           woerter: {},
+           // Wie viele neue Wörter die Runde «Heute fällig» am Tag schon gebracht hat
+           tagesNeu: { tag: 0, n: 0 } };
 }
 
 function ladeDaten() {
@@ -943,8 +1000,14 @@ QUIZ_DATEN.gruppen.forEach(g => {
   });
 });
 
+// «Heute fällig» ist kein Deck aus vokabeln.js: es sammelt Wörter aus allen Listen
+const HEUTE = { id: '__heute', icon: '🔮', titel: 'Heute fällig', typ: 'heute',
+                sprache: null, farbe: '#6b4a17', hell: '#eee0c4', woerter: [] };
+alleDecks[HEUTE.id] = HEUTE;
+
 function standardModus(deck) {
-  return { vokabeln: 'f-d', artikel: 'artikel', konjugation: 'konj', zahlen: 'num-f', fehler: 'gemischt' }[deck.typ];
+  return { vokabeln: 'f-d', artikel: 'artikel', konjugation: 'konj', zahlen: 'num-f',
+           fehler: 'gemischt', heute: 'gemischt' }[deck.typ];
 }
 
 function modiVon(deck) {
@@ -959,12 +1022,142 @@ function modiVon(deck) {
 }
 
 function anzahlWoerter(deck) {
+  if (deck.typ === 'heute') return heuteEintraege().length;
   return deck.typ === 'fehler' ? daten.fehler.length : deck.woerter.length;
 }
 
 // Stabiler Schlüssel eines Eintrags – für die Fehlerliste
 function schluessel(eintrag) {
   return eintrag.num !== undefined ? String(eintrag.num) : eintrag.fr;
+}
+
+// ════════════════════════════════════════════════════════════
+//  LERNSTAND PRO WORT
+//  Jedes Wort hat eine Stufe 0–5. Richtig (wenn fällig) = eine
+//  Stufe hoch und längere Pause, falsch = eine Stufe zurück und
+//  heute nochmals. Ab Stufe 4 «sitzt» ein Wort.
+//  Zahlen haben keinen Lernstand: 1000 Einträge, die einer Regel
+//  folgen, sind kein Wortschatz.
+// ════════════════════════════════════════════════════════════
+const PAUSE_TAGE = [0, 1, 3, 7, 14, 30];   // Pause nach Erreichen der Stufe
+const STUFE_SITZT = 4;
+const MAX_STUFE = 5;
+const NEU_PRO_TAG = 10;                    // neue Wörter pro Tag in «Heute fällig»
+const MIT_LERNSTAND = ['vokabeln', 'artikel', 'konjugation'];
+
+// Fortlaufende Tagesnummer nach Ortszeit – ein Tag beginnt um Mitternacht
+function heuteTag() {
+  const d = new Date();
+  return Math.floor((d.getTime() - d.getTimezoneOffset() * 60000) / 86400000);
+}
+
+function hatLernstand(deck) {
+  return !!deck && MIT_LERNSTAND.includes(deck.typ);
+}
+
+function standVon(deckId, k) {
+  return (daten.woerter[deckId] || {})[k] || null;
+}
+
+function neuHeute() {
+  const t = daten.tagesNeu;
+  return t && t.tag === heuteTag() ? t.n : 0;
+}
+
+// Trägt eine Antwort ein. Gibt { vorher, nachher, neu } zurück,
+// oder null für Karten ohne Lernstand.
+function lerne(k, richtig) {
+  if (!hatLernstand(alleDecks[k.deckId])) return null;
+  const heute = heuteTag();
+  const deckStand = daten.woerter[k.deckId] || (daten.woerter[k.deckId] = {});
+  const alt = deckStand[k.schluessel];
+  const w = alt || { s: 0, f: heute };
+  const vorher = w.s;
+
+  if (!richtig) {
+    w.s = Math.max(0, w.s - 1);
+    w.f = heute;          // kommt heute nochmals
+    w.t = heute;
+  } else if (w.f <= heute) {
+    if (w.t === heute) {
+      // Heute schon einmal falsch: gilt als geübt, steigt aber erst morgen wieder
+      w.f = heute + 1;
+    } else {
+      w.s = Math.min(MAX_STUFE, w.s + 1);
+      w.f = heute + PAUSE_TAGE[w.s];
+    }
+  }
+  // Richtig, aber noch nicht fällig: nichts ändert sich. So lässt sich
+  // eine Liste nicht an einem Abend «fertig» tippen.
+
+  deckStand[k.schluessel] = w;
+  if (!alt && aktuell.deck && aktuell.deck.typ === 'heute') {
+    daten.tagesNeu = { tag: heute, n: neuHeute() + 1 };
+  }
+  return { vorher, nachher: w.s, neu: !alt };
+}
+
+// Zählt für ein Deck: wie viele Wörter sitzen, wie viele sind unterwegs
+function lernstandVon(deck) {
+  const stand = daten.woerter[deck.id] || {};
+  let sitzen = 0, unterwegs = 0;
+  deck.woerter.forEach(w => {
+    const e = stand[schluessel(w)];
+    if (!e) return;
+    if (e.s >= STUFE_SITZT) sitzen++; else unterwegs++;
+  });
+  return { sitzen, unterwegs, gesamt: deck.woerter.length };
+}
+
+// Alle fälligen Wörter bis und mit Tag `bis` → [{ deck, eintrag, stand }]
+function faelligeEintraege(bis) {
+  const raus = [];
+  Object.keys(daten.woerter).forEach(deckId => {
+    const deck = alleDecks[deckId];
+    if (!hatLernstand(deck)) return;
+    const stand = daten.woerter[deckId];
+    deck.woerter.forEach(w => {
+      const e = stand[schluessel(w)];
+      if (e && e.f <= bis) raus.push({ deck, eintrag: w, stand: e });
+    });
+  });
+  return raus;
+}
+
+// Neue Wörter kommen nur aus Listen, die schon einmal geübt wurden –
+// zuletzt geübte zuerst, also der aktuelle Schulstoff vor dem alten.
+function neueEintraege(max) {
+  if (max <= 0) return [];
+  const decks = Object.values(alleDecks)
+    .filter(d => hatLernstand(d) && daten.decks[d.id])
+    .sort((a, b) => (daten.decks[b.id].zuletzt || 0) - (daten.decks[a.id].zuletzt || 0));
+  const raus = [];
+  for (const deck of decks) {
+    const stand = daten.woerter[deck.id] || {};
+    for (const w of mische(deck.woerter)) {
+      if (stand[schluessel(w)]) continue;
+      raus.push({ deck, eintrag: w, stand: null });
+      if (raus.length >= max) return raus;
+    }
+  }
+  return raus;
+}
+
+// Die Runde «Heute fällig»: zuerst Fälliges (am längsten Wartendes voran),
+// dann mit neuen Wörtern auffüllen
+function heuteEintraege() {
+  const faellig = faelligeEintraege(heuteTag())
+    .sort((a, b) => a.stand.f - b.stand.f || a.stand.s - b.stand.s)
+    .slice(0, LIMIT);
+  const platz = Math.min(LIMIT - faellig.length, NEU_PRO_TAG - neuHeute());
+  return faellig.concat(neueEintraege(platz));
+}
+
+// Je besser ein Wort sitzt, desto schwieriger die Richtung:
+// zuerst erkennen (🇫🇷→🇩🇪), ab Stufe 2 selbst wissen (🇩🇪→🇫🇷)
+function heuteModus(deck, stand) {
+  if (deck.typ === 'vokabeln') return stand && stand.s >= 2 ? 'd-f' : 'f-d';
+  return standardModus(deck);
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1202,7 +1395,7 @@ function fehlerEintraege() {
   const raus = [];
   daten.fehler.forEach(f => {
     const deck = alleDecks[f.d];
-    if (!deck || deck.typ === 'fehler') return;
+    if (!deck || deck.typ === 'fehler' || deck.typ === 'heute') return;
     const eintrag = deck.woerter.find(w => schluessel(w) === f.k);
     if (eintrag) raus.push({ deck, eintrag });
   });
@@ -1210,6 +1403,10 @@ function fehlerEintraege() {
 }
 
 function baueSession(deck, modus) {
+  if (deck.typ === 'heute') {
+    return mische(heuteEintraege()).map(({ deck: d, eintrag, stand }) =>
+      baueKarte(d, eintrag, heuteModus(d, stand)));
+  }
   const quelle = deck.typ === 'fehler'
     ? fehlerEintraege()
     : deck.woerter.map(w => ({ deck, eintrag: w }));
@@ -1247,6 +1444,63 @@ function untertitel(deck) {
 // Im Menü genügt der kurze Deck-Name, die Gruppenzeile steht ja darüber.
 // In der Kopfzeile und auf der Weiter-üben-Karte fehlt der Zusammenhang –
 // dort kommt die Unité davor, sonst wäre "un / une" nicht eindeutig.
+// Balken unter dem Listennamen – erst sichtbar, wenn ein Wort begonnen ist
+function lernBalken(deck) {
+  if (!hatLernstand(deck)) return '';
+  const l = lernstandVon(deck);
+  if (!l.gesamt || l.sitzen + l.unterwegs === 0) return '';
+  const pct = n => (n / l.gesamt * 100).toFixed(1);
+  return `
+    <span class="lern">
+      <span class="lern-bar"><i style="width:${pct(l.sitzen)}%"></i><i class="u" style="width:${pct(l.unterwegs)}%"></i></span>
+      <span class="lern-txt">${l.sitzen} von ${l.gesamt} sitzen${l.unterwegs ? ` · ${l.unterwegs} unterwegs` : ''}</span>
+    </span>`;
+}
+
+function wortZahl(n) { return n === 1 ? '1 Wort' : `${n} Wörter`; }
+
+// Karte «Heute fällig» zuoberst im Menü
+function zeigeHeute() {
+  const btn = document.getElementById('heute-btn');
+  const begonnen = Object.values(alleDecks).some(d => hatLernstand(d) && daten.decks[d.id])
+    || Object.keys(daten.woerter).length > 0;
+  // Ganz am Anfang gibt es noch nichts zu wiederholen
+  if (!begonnen) { btn.style.display = 'none'; return; }
+  btn.style.display = '';
+
+  const karte = (emoji, titel, unter, aktiv) => {
+    btn.className = 'heute' + (aktiv ? '' : ' erledigt');
+    btn.disabled = !aktiv;
+    btn.onclick = aktiv ? () => oeffneDeck(HEUTE.id) : null;
+    btn.innerHTML = `
+      <span class="emoji">${emoji}</span>
+      <span class="t"><b>${titel}</b><span>${unter}</span></span>
+      ${aktiv ? '<span class="go">→</span>' : ''}`;
+  };
+
+  if (laufendPasst(HEUTE.id, standardModus(HEUTE))) {
+    const l = daten.laufend;
+    karte('🔮', 'Heute fällig', `Runde fortsetzen — Frage ${l.index + 1} von ${l.karten.length}`, true);
+    return;
+  }
+
+  const heute = heuteTag();
+  const faellig = faelligeEintraege(heute).length;
+  const neu = heuteEintraege().filter(e => !e.stand).length;
+  if (faellig + neu > 0) {
+    const teile = [];
+    if (faellig) teile.push(`${wortZahl(faellig)} zum Wiederholen`);
+    if (neu) teile.push(faellig ? `${neu} neue` : (neu === 1 ? '1 neues Wort' : `${neu} neue Wörter`));
+    karte('🔮', 'Heute fällig', teile.join(' · '), true);
+    return;
+  }
+
+  const morgen = faelligeEintraege(heute + 1).length;
+  karte('🌙', 'Für heute alles geübt', morgen
+    ? `Morgen ${morgen === 1 ? 'wartet 1 Wort' : `warten ${morgen} Wörter`} auf dich`
+    : 'Morgen geht es weiter', false);
+}
+
 function vollerTitel(deck) {
   if (!deck.gruppe || !deck.gruppe.sprache) return deck.titel;
   const einheit = deck.gruppe.titel.split(' · ').pop();
@@ -1279,13 +1533,15 @@ function zeigeMenu() {
                   style="--dc:${g.farbe}; --dcl:${g.hell}; --p:${quote}"
                   ${leer ? 'disabled' : `onclick="oeffneDeck('${d.id}')"`}>
             <span class="icon">${d.icon}</span>
-            <span class="txt"><b>${d.titel}</b><span>${untertitel(d)}</span></span>
+            <span class="txt"><b>${d.titel}</b><span>${untertitel(d)}</span>${lernBalken(d)}</span>
             <span class="ring"><i>${stand ? quote + '%' : '·'}</i></span>
           </button>`;
         }).join('')}
       </div>
     </div>`;
   }).join('');
+
+  zeigeHeute();
 
   // „Weiter üben"
   const btn = document.getElementById('resume-btn');
@@ -1329,7 +1585,7 @@ function zumMenu() {
 // ════════════════════════════════════════════════════════════
 //  QUIZ
 // ════════════════════════════════════════════════════════════
-const aktuell = { deck: null, modus: null, index: 0, score: 0, beantwortet: false, karten: [] };
+const aktuell = { deck: null, modus: null, index: 0, score: 0, beantwortet: false, karten: [], aufstiege: 0 };
 let serie = 0;
 
 function oeffneDeck(id, modus) {
@@ -1339,8 +1595,11 @@ function oeffneDeck(id, modus) {
   aktuell.deck = deck;
   aktuell.modus = modus || standardModus(deck);
 
-  daten.letztes = { deckId: id, modus: aktuell.modus };
-  speichere();
+  // «Heute fällig» hat seine eigene Karte im Menü und gehört nicht unter «Weiter üben»
+  if (deck.typ !== 'heute') {
+    daten.letztes = { deckId: id, modus: aktuell.modus };
+    speichere();
+  }
 
   document.body.classList.add('quiz');
   document.getElementById('kopf').textContent = vollerTitel(deck);
@@ -1360,6 +1619,7 @@ function oeffneDeck(id, modus) {
     serie = 0;
     aktuell.index = l.index;
     aktuell.score = l.score;
+    aktuell.aufstiege = l.aufstiege || 0;
     aktuell.beantwortet = false;
     aktuell.karten = l.karten;
     zeichneFrage();
@@ -1387,6 +1647,7 @@ function merkeLaufend(index) {
     modus: aktuell.modus,
     index,
     score: aktuell.score,
+    aufstiege: aktuell.aufstiege,
     karten: aktuell.karten,
     zeit: Date.now(),
   };
@@ -1396,8 +1657,10 @@ function merkeLaufend(index) {
 function setzeModus(modus) {
   window.speechSynthesis && window.speechSynthesis.cancel();
   aktuell.modus = modus;
-  daten.letztes = { deckId: aktuell.deck.id, modus };
-  speichere();
+  if (aktuell.deck.typ !== 'heute') {
+    daten.letztes = { deckId: aktuell.deck.id, modus };
+    speichere();
+  }
   document.querySelectorAll('#modi .mode-btn').forEach(b =>
     b.classList.toggle('active', b.getAttribute('onclick').includes(`'${modus}'`)));
   starteRunde();
@@ -1409,6 +1672,7 @@ function starteRunde() {
   serie = 0;
   aktuell.index = 0;
   aktuell.score = 0;
+  aktuell.aufstiege = 0;
   aktuell.beantwortet = false;
   aktuell.karten = baueSession(aktuell.deck, aktuell.modus);
   daten.laufend = null;   // eine neue Runde ersetzt die angefangene
@@ -1443,6 +1707,7 @@ function zeichneFrage() {
       </div>
       <div class="answers" id="answers"></div>
       <div class="feedback" id="feedback"></div>
+      <div class="stufe" id="stufe"></div>
       <div class="next-btn-wrap">
         <button class="next-btn hidden" id="next-btn" onclick="naechsteFrage()">
           <div class="countdown-fill"></div><span>Weiter →</span>
@@ -1551,6 +1816,20 @@ function pruefe(btn, gewaehlt, k) {
     tonFalsch();
     merkeFehler(k);
   }
+  // Lernstand des Wortes nachführen und zeigen
+  const lern = lerne(k, richtig);
+  if (lern) {
+    const hoch = lern.nachher > lern.vorher;
+    if (hoch) aktuell.aufstiege++;
+    const el = document.getElementById('stufe');
+    const neuSitzt = hoch && lern.nachher === STUFE_SITZT;
+    el.className = 'stufe' + (neuSitzt ? ' sitzt' : '');
+    el.innerHTML = neuSitzt
+      ? '✨ Dieses Wort sitzt jetzt!'
+      : `Stufe <span class="rauten">${'◆'.repeat(lern.nachher)}${'◇'.repeat(MAX_STUFE - lern.nachher)}</span>`
+        + (hoch ? ' ⬆' : lern.nachher < lern.vorher ? ' ⬇' : '');
+  }
+
   // Beantwortete Frage gilt als erledigt – beim Fortsetzen geht es
   // mit der nächsten weiter, nicht nochmals mit dieser
   merkeLaufend(aktuell.index + 1);
@@ -1589,6 +1868,10 @@ function zeigeErgebnis() {
   daten.laufend = null;   // Runde ist zu Ende
   speichere();
 
+  const auf = aktuell.aufstiege;
+  const istHeute = aktuell.deck.typ === 'heute';
+  const rest = istHeute ? anzahlWoerter(HEUTE) : 0;
+
   let anim = '', text = '', sterne = '';
   if (pct === 100)     { text = 'Meisterhaft gezaubert!'; sterne = '✦ ✦ ✦'; konfetti(); tonFanfare(); }
   else if (pct >= 70)  { text = 'Stark gezaubert!'; sterne = '✦ ✦'; anim = baueZauberstab(); stoppeCanvas(); tonSonne(); }
@@ -1601,9 +1884,11 @@ function zeigeErgebnis() {
       <div class="stars">${sterne}</div>
       <h2>${text}</h2>
       <div class="result-score">${aktuell.score} / ${gesamt}</div>
+      ${auf ? `<p class="aufstieg">⬆ ${auf === 1 ? '1 Wort ist' : `${auf} Wörter sind`} eine Stufe aufgestiegen</p>` : ''}
+      ${istHeute ? `<p class="aufstieg">${rest ? `🔮 Noch ${wortZahl(rest)} für heute` : '🌙 Für heute ist alles geübt'}</p>` : ''}
       <p>${pct}% richtig beantwortet</p>
       <div class="result-btns">
-        <button class="restart-btn" onclick="starteRunde()">🔄 Nochmal üben</button>
+        ${istHeute && !rest ? '' : `<button class="restart-btn" onclick="starteRunde()">🔄 ${istHeute ? 'Weiter üben' : 'Nochmal üben'}</button>`}
         <button class="menu-btn" onclick="zumMenu()">← Zur Übersicht</button>
       </div>
     </div>`;
