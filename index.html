@@ -323,19 +323,6 @@
     color: var(--tinte);
   }
   .deck .txt span { font-size: 0.8rem; font-weight: 500; font-style: italic; color: var(--tinte-blass); }
-  /* Lernstand der Liste in einer Zeile: Gold = sitzt, hell = unterwegs */
-  .deck .txt .lern { display: flex; align-items: center; gap: 8px; margin-top: 5px; font-style: normal; }
-  .deck .txt .lern-bar {
-    flex: 1;
-    display: flex;
-    height: 5px;
-    border-radius: 3px;
-    overflow: hidden;
-    background: rgba(120,90,40,0.18);
-  }
-  .deck .txt .lern-bar i { display: block; height: 100%; background: #b8901c; }
-  .deck .txt .lern-bar i.u { background: rgba(184,144,28,0.38); }
-  .deck .txt .lern-txt { font-size: 0.72rem; font-style: normal; font-weight: 600; white-space: nowrap; }
   .deck .ring {
     flex-shrink: 0;
     width: 34px; height: 34px;
@@ -345,9 +332,14 @@
     font-weight: 700;
     color: #7a5c1e;
     border-radius: 50%;
-    background: conic-gradient(var(--gold) calc(var(--p, 0) * 1%), rgba(120,90,40,0.18) 0);
+    /* Lernstand: Gold = sitzt (--p), hell = unterwegs (bis --q). Ohne Lernstand ist --q = --p. */
+    background: conic-gradient(
+      #b8901c calc(var(--p, 0) * 1%),
+      rgba(184,144,28,0.4) 0 calc(var(--q, 0) * 1%),
+      rgba(120,90,40,0.18) 0);
     position: relative;
   }
+  .deck .ring.zahl { font-size: 0.78rem; }
   .deck .ring::before {
     content: '';
     position: absolute;
@@ -1559,6 +1551,11 @@ function untertitel(deck) {
   if (n === 0) return 'noch keine Wörter erfasst';
   const stand = daten.decks[deck.id];
   const wann = stand && wannText(stand.zuletzt);
+  // Sobald ein Wort begonnen ist, zählt, wie viele sitzen
+  const l = hatLernstand(deck) ? lernstandVon(deck) : null;
+  if (l && l.sitzen + l.unterwegs > 0) {
+    return `${l.sitzen} von ${n} sitzen` + (wann ? ` · ${wann}` : '');
+  }
   return `${n} Wörter` + (wann ? ` · ${wann}` : ' · neu');
 }
 
@@ -1566,17 +1563,20 @@ function untertitel(deck) {
 // Im Menü genügt der kurze Deck-Name, die Gruppenzeile steht ja darüber.
 // In der Kopfzeile und auf der Weiter-üben-Karte fehlt der Zusammenhang –
 // dort kommt die Unité davor, sonst wäre "un / une" nicht eindeutig.
-// Balken unter dem Listennamen – erst sichtbar, wenn ein Wort begonnen ist
-function lernBalken(deck) {
-  if (!hatLernstand(deck)) return '';
-  const l = lernstandVon(deck);
-  if (!l.gesamt || l.sitzen + l.unterwegs === 0) return '';
-  const pct = n => (n / l.gesamt * 100).toFixed(1);
-  return `
-    <span class="lern" title="${l.sitzen} von ${l.gesamt} sitzen, ${l.unterwegs} unterwegs">
-      <span class="lern-bar"><i style="width:${pct(l.sitzen)}%"></i><i class="u" style="width:${pct(l.unterwegs)}%"></i></span>
-      <span class="lern-txt">${l.sitzen} von ${l.gesamt} sitzen</span>
-    </span>`;
+// Der Ring rechts zeigt bei Wortlisten den Lernstand: goldener Bogen und Zahl
+// = Wörter, die sitzen; heller Bogen = unterwegs. Listen ohne Lernstand
+// (Zahlen, Meine Fehler) zeigen wie bisher die Quote der letzten Runde.
+function ringVon(deck) {
+  const stand = daten.decks[deck.id];
+  if (hatLernstand(deck)) {
+    const l = lernstandVon(deck);
+    const begonnen = l.sitzen + l.unterwegs > 0;
+    const pct = n => l.gesamt ? (n / l.gesamt * 100).toFixed(1) : 0;
+    return { p: pct(l.sitzen), q: pct(l.sitzen + l.unterwegs), text: begonnen ? String(l.sitzen) : '·',
+             zahl: begonnen, titel: `${l.sitzen} von ${l.gesamt} sitzen, ${l.unterwegs} unterwegs` };
+  }
+  const quote = stand ? stand.letzteQuote : 0;
+  return { p: quote, q: quote, text: stand ? quote + '%' : '·', zahl: false, titel: stand ? 'Letzte Runde' : '' };
 }
 
 function wortZahl(n) { return n === 1 ? '1 Wort' : `${n} Wörter`; }
@@ -1678,15 +1678,14 @@ function zeigeMenu() {
       <div class="deck-list">
         ${g.decks.map(d => {
           const leer = anzahlWoerter(d) === 0;
-          const stand = daten.decks[d.id];
-          const quote = stand ? stand.letzteQuote : 0;
+          const r = ringVon(d);
           return `
           <button class="deck ${leer ? 'leer' : ''}"
-                  style="--dc:${g.farbe}; --dcl:${g.hell}; --p:${quote}"
+                  style="--dc:${g.farbe}; --dcl:${g.hell}; --p:${r.p}; --q:${r.q}"
                   ${leer ? 'disabled' : `onclick="oeffneDeck('${d.id}')"`}>
             <span class="icon">${d.icon}</span>
-            <span class="txt"><b>${d.titel}</b><span>${untertitel(d)}</span>${lernBalken(d)}</span>
-            <span class="ring"><i>${stand ? quote + '%' : '·'}</i></span>
+            <span class="txt"><b>${d.titel}</b><span>${untertitel(d)}</span></span>
+            <span class="ring ${r.zahl ? 'zahl' : ''}" title="${r.titel}"><i>${r.text}</i></span>
           </button>`;
         }).join('')}
       </div>
