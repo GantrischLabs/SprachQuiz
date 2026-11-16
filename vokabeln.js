@@ -9,6 +9,10 @@
 //    titel   Anzeigename
 //    typ     'vokabeln' | 'artikel' | 'konjugation' | 'zahlen' | 'fehler'
 //    woerter [{ fr, de }] bzw. je nach Typ (siehe Generatoren unten)
+//
+//  Der Lernstand eines Wortes (Stufe, nächste Wiederholung) hängt an
+//  der Deck-id und am Feld "fr". Wird "fr" korrigiert, beginnt dieses
+//  eine Wort wieder bei Stufe 0 – alles andere bleibt erhalten.
 // ════════════════════════════════════════════════════════════
 
 // ── Französische Zahlwörter (Schweizer Form: septante / nonante) ──
