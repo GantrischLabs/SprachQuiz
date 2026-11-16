@@ -150,6 +150,49 @@
   .resume .t span { font-size: 0.82rem; font-weight: 600; color: #b9a37a; }
   .resume .go { font-size: 1.2rem; color: var(--gold); }
 
+  /* ── WOCHENZIEL ──────────────────────────── */
+  .woche {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 2px 10px;
+    margin-bottom: 12px;
+    padding: 0 4px;
+    font-size: 0.86rem;
+    color: #b9a37a;
+  }
+  .woche .w-rauten { font-size: 1.05rem; letter-spacing: 4px; color: var(--gold); }
+  .woche b { color: var(--gold-hell); font-weight: 700; }
+  .woche .w-heute { margin-left: auto; font-style: italic; font-size: 0.8rem; }
+
+  /* ── SPRACHWAHL ──────────────────────────── */
+  .sprachwahl {
+    display: flex;
+    gap: 6px;
+    padding: 4px;
+    margin-bottom: 14px;
+    border: 1px solid rgba(201,162,39,0.35);
+    border-radius: 999px;
+    background: rgba(36,26,19,0.75);
+  }
+  .sprachwahl:empty { display: none; }
+  .sprachwahl button {
+    flex: 1;
+    min-height: 44px;
+    border: none;
+    border-radius: 999px;
+    background: transparent;
+    color: #b9a37a;
+    font-family: 'Cinzel', Georgia, serif;
+    font-size: 0.9rem;
+    font-weight: 700;
+  }
+  .sprachwahl button.aktiv {
+    color: #2a1c0c;
+    background: linear-gradient(135deg, #f0d48a, #c9a227);
+    box-shadow: 0 1px 6px rgba(0,0,0,0.4);
+  }
+
   /* ── HEUTE FÄLLIG ────────────────────────── */
   .heute {
     display: flex;
@@ -892,6 +935,8 @@
   <!-- ══ STARTMENÜ ══ -->
   <div id="menu">
     <div id="konto-leiste"></div>
+    <div class="woche" id="woche"></div>
+    <div class="sprachwahl" id="sprachwahl"></div>
     <button class="heute" id="heute-btn" style="display:none"></button>
     <button class="resume" id="resume-btn" style="display:none"></button>
     <div id="gruppen"></div>
@@ -945,7 +990,13 @@ function leereDaten() {
            // Lernstand pro Wort: woerter[deckId][schluessel] = { s: Stufe 0–5, f: fällig ab Tag, t: Tag des letzten Fehlers }
            woerter: {},
            // Wie viele neue Wörter die Runde «Heute fällig» am Tag schon gebracht hat
-           tagesNeu: { tag: 0, n: 0 } };
+           tagesNeu: { tag: 0 },   // { tag, fr: n, en: n }
+           // Gewählte Sprache im Menü – alle Inhalte und Zähler richten sich danach
+           sprache: null,
+           // Zuletzt geübte Liste pro Sprache, für «Weiter üben»
+           letzteJe: {},
+           // Beantwortete Fragen pro Tag (alle Sprachen zusammen), fürs Wochenziel
+           tage: {} };
 }
 
 function ladeDaten() {
@@ -1000,10 +1051,32 @@ QUIZ_DATEN.gruppen.forEach(g => {
   });
 });
 
-// «Heute fällig» ist kein Deck aus vokabeln.js: es sammelt Wörter aus allen Listen
-const HEUTE = { id: '__heute', icon: '🔮', titel: 'Heute fällig', typ: 'heute',
-                sprache: null, farbe: '#6b4a17', hell: '#eee0c4', woerter: [] };
-alleDecks[HEUTE.id] = HEUTE;
+// ── Sprachen: ergeben sich aus den Gruppen in vokabeln.js ──
+const SPRACHEN = [...new Set(QUIZ_DATEN.gruppen.map(g => g.sprache).filter(Boolean))];
+const SPRACH_NAME = { fr: '🇫🇷 Französisch', en: '🇬🇧 Englisch' };
+
+// Die im Menü gewählte Sprache. Ohne Wahl: die der zuletzt geübten Liste.
+function aktiveSprache() {
+  if (SPRACHEN.includes(daten.sprache)) return daten.sprache;
+  const letztes = daten.letztes && alleDecks[daten.letztes.deckId];
+  return (letztes && SPRACHEN.includes(letztes.sprache)) ? letztes.sprache : SPRACHEN[0];
+}
+
+function setzeSprache(sp) {
+  if (!SPRACHEN.includes(sp)) return;
+  daten.sprache = sp;
+  speichere();
+  zeigeMenu();
+}
+
+// «Heute fällig» ist kein Deck aus vokabeln.js: es sammelt die Wörter
+// aller Listen einer Sprache. Pro Sprache gibt es eine eigene Runde.
+const HEUTE = {};
+SPRACHEN.forEach(sp => {
+  HEUTE[sp] = { id: '__heute-' + sp, icon: '🔮', titel: 'Heute fällig', typ: 'heute',
+                sprache: sp, farbe: '#6b4a17', hell: '#eee0c4', woerter: [] };
+  alleDecks[HEUTE[sp].id] = HEUTE[sp];
+});
 
 function standardModus(deck) {
   return { vokabeln: 'f-d', artikel: 'artikel', konjugation: 'konj', zahlen: 'num-f',
@@ -1022,8 +1095,8 @@ function modiVon(deck) {
 }
 
 function anzahlWoerter(deck) {
-  if (deck.typ === 'heute') return heuteEintraege().length;
-  return deck.typ === 'fehler' ? daten.fehler.length : deck.woerter.length;
+  if (deck.typ === 'heute') return heuteEintraege(deck.sprache).length;
+  return deck.typ === 'fehler' ? fehlerEintraege().length : deck.woerter.length;
 }
 
 // Stabiler Schlüssel eines Eintrags – für die Fehlerliste
@@ -1059,9 +1132,10 @@ function standVon(deckId, k) {
   return (daten.woerter[deckId] || {})[k] || null;
 }
 
-function neuHeute() {
+// Neue Wörter, die «Heute fällig» heute in dieser Sprache schon gebracht hat
+function neuHeute(sprache) {
   const t = daten.tagesNeu;
-  return t && t.tag === heuteTag() ? t.n : 0;
+  return t && t.tag === heuteTag() ? (t[sprache] || 0) : 0;
 }
 
 // Trägt eine Antwort ein. Gibt { vorher, nachher, neu } zurück,
@@ -1092,7 +1166,10 @@ function lerne(k, richtig) {
 
   deckStand[k.schluessel] = w;
   if (!alt && aktuell.deck && aktuell.deck.typ === 'heute') {
-    daten.tagesNeu = { tag: heute, n: neuHeute() + 1 };
+    const sp = aktuell.deck.sprache;
+    const t = daten.tagesNeu && daten.tagesNeu.tag === heute ? daten.tagesNeu : { tag: heute };
+    t[sp] = (t[sp] || 0) + 1;
+    daten.tagesNeu = t;
   }
   return { vorher, nachher: w.s, neu: !alt };
 }
@@ -1109,12 +1186,12 @@ function lernstandVon(deck) {
   return { sitzen, unterwegs, gesamt: deck.woerter.length };
 }
 
-// Alle fälligen Wörter bis und mit Tag `bis` → [{ deck, eintrag, stand }]
-function faelligeEintraege(bis) {
+// Fällige Wörter einer Sprache bis und mit Tag `bis` → [{ deck, eintrag, stand }]
+function faelligeEintraege(bis, sprache) {
   const raus = [];
   Object.keys(daten.woerter).forEach(deckId => {
     const deck = alleDecks[deckId];
-    if (!hatLernstand(deck)) return;
+    if (!hatLernstand(deck) || deck.sprache !== sprache) return;
     const stand = daten.woerter[deckId];
     deck.woerter.forEach(w => {
       const e = stand[schluessel(w)];
@@ -1126,10 +1203,10 @@ function faelligeEintraege(bis) {
 
 // Neue Wörter kommen nur aus Listen, die schon einmal geübt wurden –
 // zuletzt geübte zuerst, also der aktuelle Schulstoff vor dem alten.
-function neueEintraege(max) {
+function neueEintraege(max, sprache) {
   if (max <= 0) return [];
   const decks = Object.values(alleDecks)
-    .filter(d => hatLernstand(d) && daten.decks[d.id])
+    .filter(d => hatLernstand(d) && d.sprache === sprache && daten.decks[d.id])
     .sort((a, b) => (daten.decks[b.id].zuletzt || 0) - (daten.decks[a.id].zuletzt || 0));
   const raus = [];
   for (const deck of decks) {
@@ -1145,12 +1222,46 @@ function neueEintraege(max) {
 
 // Die Runde «Heute fällig»: zuerst Fälliges (am längsten Wartendes voran),
 // dann mit neuen Wörtern auffüllen
-function heuteEintraege() {
-  const faellig = faelligeEintraege(heuteTag())
+function heuteEintraege(sprache) {
+  const faellig = faelligeEintraege(heuteTag(), sprache)
     .sort((a, b) => a.stand.f - b.stand.f || a.stand.s - b.stand.s)
     .slice(0, LIMIT);
-  const platz = Math.min(LIMIT - faellig.length, NEU_PRO_TAG - neuHeute());
-  return faellig.concat(neueEintraege(platz));
+  const platz = Math.min(LIMIT - faellig.length, NEU_PRO_TAG - neuHeute(sprache));
+  return faellig.concat(neueEintraege(platz, sprache));
+}
+
+// ════════════════════════════════════════════════════════════
+//  WOCHENZIEL
+//  Drei Übungstage pro Woche genügen – egal in welcher Sprache.
+//  Ein Tag zählt, sobald TAG_ZIEL Fragen beantwortet sind.
+// ════════════════════════════════════════════════════════════
+const WOCHEN_ZIEL = 3;
+const TAG_ZIEL = 10;
+
+// Montag = Tag 0 der Woche
+function wocheStand() {
+  const heute = heuteTag();
+  const start = heute - ((new Date().getDay() + 6) % 7);
+  let tage = 0;
+  for (let t = start; t < start + 7; t++) {
+    if ((daten.tage[t] || 0) >= TAG_ZIEL) tage++;
+  }
+  return { tage, heuteAntworten: daten.tage[heute] || 0 };
+}
+
+// Zählt eine beantwortete Frage. Gibt true zurück, wenn der Tag
+// genau damit zum Übungstag geworden ist.
+function zaehleAntwort() {
+  const heute = heuteTag();
+  const n = (daten.tage[heute] || 0) + 1;
+  daten.tage[heute] = n;
+  // Alte Tage wegräumen, damit der gespeicherte Stand klein bleibt
+  Object.keys(daten.tage).forEach(t => { if (Number(t) < heute - 60) delete daten.tage[t]; });
+  return n === TAG_ZIEL;
+}
+
+function rauten(voll, von) {
+  return '◆'.repeat(Math.min(voll, von)) + '◇'.repeat(Math.max(0, von - voll));
 }
 
 // Je besser ein Wort sitzt, desto schwieriger die Richtung:
@@ -1390,12 +1501,13 @@ function baueKarte(deck, eintrag, modus) {
   });
 }
 
-// Fehlerliste → [{ deck, eintrag }], unbekannte Einträge fallen weg
+// Fehlerliste der gewählten Sprache → [{ deck, eintrag }], unbekannte Einträge fallen weg
 function fehlerEintraege() {
+  const sp = aktiveSprache();
   const raus = [];
   daten.fehler.forEach(f => {
     const deck = alleDecks[f.d];
-    if (!deck || deck.typ === 'fehler' || deck.typ === 'heute') return;
+    if (!deck || deck.typ === 'fehler' || deck.typ === 'heute' || deck.sprache !== sp) return;
     const eintrag = deck.woerter.find(w => schluessel(w) === f.k);
     if (eintrag) raus.push({ deck, eintrag });
   });
@@ -1404,7 +1516,7 @@ function fehlerEintraege() {
 
 function baueSession(deck, modus) {
   if (deck.typ === 'heute') {
-    return mische(heuteEintraege()).map(({ deck: d, eintrag, stand }) =>
+    return mische(heuteEintraege(deck.sprache)).map(({ deck: d, eintrag, stand }) =>
       baueKarte(d, eintrag, heuteModus(d, stand)));
   }
   const quelle = deck.typ === 'fehler'
@@ -1432,7 +1544,7 @@ function wannText(zeit) {
 function untertitel(deck) {
   const n = anzahlWoerter(deck);
   if (deck.typ === 'fehler') {
-    return n === 0 ? 'keine Fehler – super!' : `${n} Wörter aus allen Listen`;
+    return n === 0 ? 'keine Fehler – super!' : `${wortZahl(n)} aus allen Listen`;
   }
   if (n === 0) return 'noch keine Wörter erfasst';
   const stand = daten.decks[deck.id];
@@ -1461,32 +1573,33 @@ function wortZahl(n) { return n === 1 ? '1 Wort' : `${n} Wörter`; }
 
 // Karte «Heute fällig» zuoberst im Menü
 function zeigeHeute() {
+  const sp = aktiveSprache();
+  const H = HEUTE[sp];
   const btn = document.getElementById('heute-btn');
-  const begonnen = Object.values(alleDecks).some(d => hatLernstand(d) && daten.decks[d.id])
-    || Object.keys(daten.woerter).length > 0;
-  // Ganz am Anfang gibt es noch nichts zu wiederholen
-  if (!begonnen) { btn.style.display = 'none'; return; }
+  const begonnen = Object.values(alleDecks).some(d =>
+    hatLernstand(d) && d.sprache === sp && (daten.decks[d.id] || daten.woerter[d.id]));
+  // Ganz am Anfang gibt es in dieser Sprache noch nichts zu wiederholen
+  if (!H || !begonnen) { btn.style.display = 'none'; return; }
   btn.style.display = '';
 
   const karte = (emoji, titel, unter, aktiv) => {
     btn.className = 'heute' + (aktiv ? '' : ' erledigt');
     btn.disabled = !aktiv;
-    btn.onclick = aktiv ? () => oeffneDeck(HEUTE.id) : null;
+    btn.onclick = aktiv ? () => oeffneDeck(H.id) : null;
     btn.innerHTML = `
       <span class="emoji">${emoji}</span>
       <span class="t"><b>${titel}</b><span>${unter}</span></span>
       ${aktiv ? '<span class="go">→</span>' : ''}`;
   };
 
-  if (laufendPasst(HEUTE.id, standardModus(HEUTE))) {
+  if (laufendPasst(H.id, standardModus(H))) {
     const l = daten.laufend;
     karte('🔮', 'Heute fällig', `Runde fortsetzen — Frage ${l.index + 1} von ${l.karten.length}`, true);
     return;
   }
 
-  const heute = heuteTag();
-  const faellig = faelligeEintraege(heute).length;
-  const neu = heuteEintraege().filter(e => !e.stand).length;
+  const faellig = faelligeEintraege(heuteTag(), sp).length;
+  const neu = heuteEintraege(sp).filter(e => !e.stand).length;
   if (faellig + neu > 0) {
     const teile = [];
     if (faellig) teile.push(`${wortZahl(faellig)} zum Wiederholen`);
@@ -1495,10 +1608,32 @@ function zeigeHeute() {
     return;
   }
 
-  const morgen = faelligeEintraege(heute + 1).length;
-  karte('🌙', 'Für heute alles geübt', morgen
-    ? `Morgen ${morgen === 1 ? 'wartet 1 Wort' : `warten ${morgen} Wörter`} auf dich`
-    : 'Morgen geht es weiter', false);
+  // Bewusst ohne «morgen»: drei Übungstage pro Woche genügen
+  karte('🌙', 'Für heute alles geübt', 'Beim nächsten Mal geht es weiter', false);
+}
+
+// Umschalter Französisch / Englisch
+function zeigeSprachwahl() {
+  const el = document.getElementById('sprachwahl');
+  if (SPRACHEN.length < 2) { el.innerHTML = ''; return; }
+  const sp = aktiveSprache();
+  el.innerHTML = SPRACHEN.map(x =>
+    `<button class="${x === sp ? 'aktiv' : ''}" onclick="setzeSprache('${x}')">${SPRACH_NAME[x] || x}</button>`).join('');
+}
+
+// Wochenziel: drei Rauten, eine pro Übungstag
+function zeigeWoche() {
+  const w = wocheStand();
+  const erreicht = w.tage >= WOCHEN_ZIEL;
+  const rest = TAG_ZIEL - w.heuteAntworten;
+  const heute = rest <= 0 ? 'heute ✓'
+    : w.heuteAntworten > 0 ? `heute noch ${rest === 1 ? '1 Frage' : rest + ' Fragen'}` : '';
+  document.getElementById('woche').innerHTML = `
+    <span class="w-rauten">${rauten(w.tage, WOCHEN_ZIEL)}</span>
+    <span>${erreicht
+      ? `<b>Wochenziel erreicht ✨</b> ${w.tage} Tage geübt`
+      : `<b>Diese Woche</b> ${w.tage} von ${WOCHEN_ZIEL} Tagen geübt`}</span>
+    ${heute ? `<span class="w-heute">${heute}</span>` : ''}`;
 }
 
 function vollerTitel(deck) {
@@ -1511,7 +1646,12 @@ function zeigeMenu() {
   // Rang nur bei der ersten Gruppe einer Sprache zeigen – Französisch
   // steht in mehreren Gruppen, viermal derselbe Rang wäre nur Lärm.
   const rangGezeigt = new Set();
+  const sp = aktiveSprache();
+  zeigeWoche();
+  zeigeSprachwahl();
   document.getElementById('gruppen').innerHTML = QUIZ_DATEN.gruppen.map((g, gi) => {
+    // Nur die gewählte Sprache; Gruppen ohne Sprache (Wiederholen) immer
+    if (g.sprache && g.sprache !== sp) return '';
     const zeigeRang = g.sprache && !rangGezeigt.has(g.sprache);
     if (zeigeRang) rangGezeigt.add(g.sprache);
     const n = zeigeRang ? niveauVon(g.sprache) : null;
@@ -1543,13 +1683,16 @@ function zeigeMenu() {
 
   zeigeHeute();
 
-  // „Weiter üben"
+  // „Weiter üben" – pro Sprache die zuletzt geübte Liste
   const btn = document.getElementById('resume-btn');
-  const letztes = daten.letztes && alleDecks[daten.letztes.deckId];
+  const alt = daten.letztes && alleDecks[daten.letztes.deckId];
+  const merk = daten.letzteJe[sp]
+    || (alt && (!alt.sprache || alt.sprache === sp) ? daten.letztes : null);
+  const letztes = merk && alleDecks[merk.deckId];
   if (letztes && anzahlWoerter(letztes) > 0) {
     const stand = daten.decks[letztes.id];
     const wann = stand && wannText(stand.zuletzt);
-    const offen = laufendPasst(letztes.id, daten.letztes.modus);
+    const offen = laufendPasst(letztes.id, merk.modus);
     const unter = offen
       ? `${vollerTitel(letztes)} — Frage ${daten.laufend.index + 1} von ${daten.laufend.karten.length}`
       : `${vollerTitel(letztes)}${wann ? ' — ' + wann : ''}`;
@@ -1558,14 +1701,18 @@ function zeigeMenu() {
       <span class="t"><b>${offen ? 'Runde fortsetzen' : 'Weiter üben'}</b><span>${unter}</span></span>
       <span class="go">→</span>`;
     btn.style.display = '';
-    btn.onclick = () => oeffneDeck(letztes.id, daten.letztes.modus);
+    btn.onclick = () => oeffneDeck(letztes.id, merk.modus);
   } else {
     btn.style.display = 'none';
   }
 
-  const gesamt = Object.values(alleDecks)
-    .reduce((s, d) => s + (d.typ === 'vokabeln' ? d.woerter.length : 0), 0);
-  document.getElementById('hinweis').textContent = `${gesamt} Wörter · dazu Konjugation, Zahlen und un/une`;
+  // Fusszeile: was es in dieser Sprache alles gibt
+  const decksSp = Object.values(alleDecks).filter(d => d.sprache === sp && d.typ !== 'heute');
+  const gesamt = decksSp.reduce((n, d) => n + (d.typ === 'vokabeln' ? d.woerter.length : 0), 0);
+  const dazu = [['konjugation', 'Konjugation'], ['zahlen', 'Zahlen'], ['artikel', 'un/une']]
+    .filter(([typ]) => decksSp.some(d => d.typ === typ)).map(x => x[1]);
+  const liste = dazu.length > 1 ? `${dazu.slice(0, -1).join(', ')} und ${dazu[dazu.length - 1]}` : dazu.join('');
+  document.getElementById('hinweis').textContent = `${gesamt} Wörter` + (liste ? ` · dazu ${liste}` : '');
 }
 
 function klappe(gi) {
@@ -1585,7 +1732,7 @@ function zumMenu() {
 // ════════════════════════════════════════════════════════════
 //  QUIZ
 // ════════════════════════════════════════════════════════════
-const aktuell = { deck: null, modus: null, index: 0, score: 0, beantwortet: false, karten: [], aufstiege: 0 };
+const aktuell = { deck: null, modus: null, index: 0, score: 0, beantwortet: false, karten: [], aufstiege: 0, tagNeu: false };
 let serie = 0;
 
 function oeffneDeck(id, modus) {
@@ -1598,6 +1745,7 @@ function oeffneDeck(id, modus) {
   // «Heute fällig» hat seine eigene Karte im Menü und gehört nicht unter «Weiter üben»
   if (deck.typ !== 'heute') {
     daten.letztes = { deckId: id, modus: aktuell.modus };
+    daten.letzteJe[deck.sprache || aktiveSprache()] = daten.letztes;
     speichere();
   }
 
@@ -1620,6 +1768,7 @@ function oeffneDeck(id, modus) {
     aktuell.index = l.index;
     aktuell.score = l.score;
     aktuell.aufstiege = l.aufstiege || 0;
+    aktuell.tagNeu = !!l.tagNeu;
     aktuell.beantwortet = false;
     aktuell.karten = l.karten;
     zeichneFrage();
@@ -1635,6 +1784,8 @@ function laufendPasst(deckId, modus) {
   return !!l
     && l.deckId === deckId
     && l.modus === modus
+    // «Meine Fehler» gibt es pro Sprache: eine Runde der anderen Sprache passt nicht
+    && (!l.sprache || l.sprache === aktiveSprache())
     && Array.isArray(l.karten)
     && l.index < l.karten.length
     && (Date.now() - l.zeit) < 24 * 3600 * 1000;
@@ -1648,6 +1799,8 @@ function merkeLaufend(index) {
     index,
     score: aktuell.score,
     aufstiege: aktuell.aufstiege,
+    tagNeu: aktuell.tagNeu,
+    sprache: aktuell.deck.sprache || aktiveSprache(),
     karten: aktuell.karten,
     zeit: Date.now(),
   };
@@ -1659,6 +1812,7 @@ function setzeModus(modus) {
   aktuell.modus = modus;
   if (aktuell.deck.typ !== 'heute') {
     daten.letztes = { deckId: aktuell.deck.id, modus };
+    daten.letzteJe[aktuell.deck.sprache || aktiveSprache()] = daten.letztes;
     speichere();
   }
   document.querySelectorAll('#modi .mode-btn').forEach(b =>
@@ -1673,6 +1827,7 @@ function starteRunde() {
   aktuell.index = 0;
   aktuell.score = 0;
   aktuell.aufstiege = 0;
+  aktuell.tagNeu = false;
   aktuell.beantwortet = false;
   aktuell.karten = baueSession(aktuell.deck, aktuell.modus);
   daten.laufend = null;   // eine neue Runde ersetzt die angefangene
@@ -1816,6 +1971,9 @@ function pruefe(btn, gewaehlt, k) {
     tonFalsch();
     merkeFehler(k);
   }
+  // Fürs Wochenziel: jede beantwortete Frage zählt, egal ob richtig
+  if (zaehleAntwort()) aktuell.tagNeu = true;
+
   // Lernstand des Wortes nachführen und zeigen
   const lern = lerne(k, richtig);
   if (lern) {
@@ -1870,7 +2028,13 @@ function zeigeErgebnis() {
 
   const auf = aktuell.aufstiege;
   const istHeute = aktuell.deck.typ === 'heute';
-  const rest = istHeute ? anzahlWoerter(HEUTE) : 0;
+  const rest = istHeute ? anzahlWoerter(aktuell.deck) : 0;
+  // Hat diese Runde den Tag zum Übungstag gemacht?
+  const woche = wocheStand();
+  const tagZeile = !aktuell.tagNeu ? ''
+    : woche.tage === WOCHEN_ZIEL ? `🏆 Wochenziel erreicht: ${WOCHEN_ZIEL} Tage geübt!`
+    : woche.tage < WOCHEN_ZIEL ? `${rauten(woche.tage, WOCHEN_ZIEL)} Übungstag ${woche.tage} von ${WOCHEN_ZIEL} diese Woche`
+    : `✦ ${woche.tage}. Übungstag diese Woche`;
 
   let anim = '', text = '', sterne = '';
   if (pct === 100)     { text = 'Meisterhaft gezaubert!'; sterne = '✦ ✦ ✦'; konfetti(); tonFanfare(); }
@@ -1885,6 +2049,7 @@ function zeigeErgebnis() {
       <h2>${text}</h2>
       <div class="result-score">${aktuell.score} / ${gesamt}</div>
       ${auf ? `<p class="aufstieg">⬆ ${auf === 1 ? '1 Wort ist' : `${auf} Wörter sind`} eine Stufe aufgestiegen</p>` : ''}
+      ${tagZeile ? `<p class="aufstieg">${tagZeile}</p>` : ''}
       ${istHeute ? `<p class="aufstieg">${rest ? `🔮 Noch ${wortZahl(rest)} für heute` : '🌙 Für heute ist alles geübt'}</p>` : ''}
       <p>${pct}% richtig beantwortet</p>
       <div class="result-btns">
