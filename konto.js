@@ -14,6 +14,12 @@
 //  - Ohne Netz wird lokal weitergespeichert und später
 //    hochgeladen.
 // ════════════════════════════════════════════════════════════
+// Supabase zeigt im Dashboard teils die API-Adresse mit «/rest/v1/» an.
+// Die Bibliothek braucht die reine Projekt-Adresse – beides soll gehen.
+function projektUrl(url) {
+  return String(url || "").trim().replace(/\/+$/, "").replace(/\/(rest|auth)\/v1$/, "");
+}
+
 const Konto = (() => {
   const cfg = window.QUIZ_CONFIG || {};
   const konfiguriert = !!(cfg.supabaseUrl && cfg.supabaseAnonKey);
@@ -91,7 +97,7 @@ const Konto = (() => {
 
     if (!(await ladeBibliothek())) { status = 'offline'; renderLeiste(); return; }
 
-    client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
+    client = window.supabase.createClient(projektUrl(cfg.supabaseUrl), cfg.supabaseAnonKey);
     client.auth.onAuthStateChange((ev, s) => {
       session = s;
       // Link aus der "Passwort vergessen"-Mail geöffnet

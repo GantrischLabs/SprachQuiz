@@ -15,7 +15,7 @@ jobs:
   ping:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Datenbank anfragen
         run: |
@@ -27,7 +27,8 @@ jobs:
               console.log("config.js ist leer – keine Datenbank eingerichtet, nichts zu tun.");
               process.exit(0);
             }
-            fetch(c.supabaseUrl + "/rest/v1/rpc/ping", { method: "POST", headers: { apikey: c.supabaseAnonKey } })
+            const basis = String(c.supabaseUrl).trim().replace(/\/+$/, "").replace(/\/(rest|auth)\/v1$/, "");
+            fetch(basis + "/rest/v1/rpc/ping", { method: "POST", headers: { apikey: c.supabaseAnonKey } })
               .then(async r => {
                 console.log("Antwort:", r.status);
                 if (!r.ok) { console.log(await r.text()); process.exit(1); }
