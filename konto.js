@@ -266,36 +266,38 @@ const Konto = (() => {
 
   /* ---------------- Ansicht: Leiste im Menü ---------------- */
 
+  // Kleines Rund-Icon in der Kopfzeile, links der Sprachwahl:
+  // Anfangsbuchstabe des Kindes. Antippen öffnet die Konto-Seite.
   function renderLeiste() {
-    const el = document.getElementById('konto-leiste');
+    const el = document.getElementById('konto-icon');
     if (!el) return;
     if (!konfiguriert) { el.innerHTML = ''; return; }
 
-    let emoji = '☁️', titel, unter;
+    const warnung = status === 'offline' || status === 'abgemeldet';
+    let zeichen, titel, klasse = '';
     if (profil) {
-      emoji = '👤';
-      titel = esc(profil.name);
-      unter = {
-        ok: session ? 'Fortschritt auf allen Geräten gespeichert · wechseln' : 'wechseln',
+      zeichen = esc((profil.name.trim()[0] || '?').toUpperCase());
+      titel = profil.name + ' – ' + ({
+        ok: 'Profil wechseln',
         laedt: 'wird abgeglichen …',
-        offline: '⚠️ Gerade offline – wird später gespeichert',
-        abgemeldet: '⚠️ Abgemeldet – tippen zum Anmelden',
-      }[status] || 'wechseln';
+        offline: 'gerade offline, wird später gespeichert',
+        abgemeldet: 'abgemeldet, tippen zum Anmelden',
+      }[status] || 'Profil wechseln');
     } else if (session) {
-      titel = 'Wer übt?';
-      unter = 'Profil wählen';
+      zeichen = '?';
+      titel = 'Wer übt? Profil wählen';
+      klasse = 'ohne';
     } else {
-      titel = 'Fortschritt auf allen Geräten';
-      unter = 'Anmelden oder Konto erstellen';
+      zeichen = '👤';
+      titel = 'Anmelden – Fortschritt auf allen Geräten';
+      klasse = 'ohne emoji';
     }
 
     el.innerHTML = `
-      <button class="konto-leiste ${status === 'offline' || status === 'abgemeldet' ? 'warnung' : ''}" onclick="Konto.zeigeKonto()">
-        <span class="emoji">${emoji}</span>
-        <span class="t"><b>${titel}</b><span>${unter}</span></span>
-        <span class="go">›</span>
-      </button>`;
+      <button class="konto-icon ${klasse} ${warnung ? 'warnung' : ''} ${status === 'laedt' ? 'laedt' : ''}"
+              onclick="Konto.zeigeKonto()" title="${esc(titel)}" aria-label="${esc(titel)}">${zeichen}</button>`;
   }
+
 
   /* ---------------- Ansicht: Konto-Seite ---------------- */
 

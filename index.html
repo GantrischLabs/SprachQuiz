@@ -796,26 +796,40 @@
   }
 
   /* ── KONTO ───────────────────────────────── */
-  .konto-leiste {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    width: 100%;
-    text-align: left;
-    border: 1px solid rgba(201,162,39,0.35);
-    border-radius: var(--radius);
-    padding: 10px 14px;
-    margin-bottom: 14px;
-    background: rgba(36,26,19,0.75);
-    color: var(--gold-hell);
+  /* Profil-Icon in der Kopfzeile: Anfangsbuchstabe des Kindes */
+  #konto-icon { flex-shrink: 0; }
+  #konto-icon:empty, body.quiz #konto-icon, body.konto #konto-icon { display: none; }
+  .konto-icon {
+    position: relative;
+    width: 40px; height: 40px;
+    display: grid;
+    place-items: center;
+    border: 1.5px solid var(--gold);
+    border-radius: 50%;
+    background: var(--pergament);
+    color: var(--tinte);
+    font-family: 'Cinzel', Georgia, serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.45);
   }
-  .konto-leiste:active { transform: scale(0.985); }
-  .konto-leiste.warnung { border-color: #c27c2c; }
-  .konto-leiste .emoji { font-size: 1.3rem; }
-  .konto-leiste .t { flex: 1; min-width: 0; }
-  .konto-leiste .t b { display: block; font-family: 'Cinzel', Georgia, serif; font-size: 0.88rem; }
-  .konto-leiste .t span { font-size: 0.8rem; font-style: italic; color: #b9a37a; }
-  .konto-leiste .go { font-size: 1.3rem; color: var(--gold); }
+  .konto-icon:active { transform: scale(0.92); }
+  .konto-icon:focus-visible { outline: 2px solid var(--gold-hell); outline-offset: 2px; }
+  /* Noch kein Profil gewählt: zurückhaltend */
+  .konto-icon.ohne { background: var(--dunkel-warm); color: var(--gold-hell); border-style: dashed; }
+  .konto-icon.emoji { font-size: 1.05rem; }
+  .konto-icon.laedt { opacity: 0.7; }
+  /* Offline oder abgemeldet: kleiner oranger Punkt */
+  .konto-icon.warnung::after {
+    content: '';
+    position: absolute;
+    top: -1px; right: -1px;
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    background: #e08a2c;
+    border: 2px solid var(--dunkel);
+  }
 
   #konto { animation: reinRechts 0.25s ease; }
   .konto-karte {
@@ -937,12 +951,12 @@
     <button class="back-btn" onclick="zumMenu()" aria-label="Zurück zum Menü">←</button>
     <h1 id="kopf">✦ Sprachen Üben ✦</h1>
     <div class="woche" id="woche"></div>
+    <div id="konto-icon"></div>
     <div class="sprachwahl" id="sprachwahl"></div>
   </header>
 
   <!-- ══ STARTMENÜ ══ -->
   <div id="menu">
-    <div id="konto-leiste"></div>
     <button class="heute" id="heute-btn" style="display:none"></button>
     <button class="resume" id="resume-btn" style="display:none"></button>
     <div id="gruppen"></div>
