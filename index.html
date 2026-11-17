@@ -150,21 +150,26 @@
   .resume .t span::before { content: ' · '; }
   .resume .go { font-size: 1.05rem; color: var(--gold); }
 
-  /* ── WOCHENZIEL: eine ruhige Zeile unter dem Titel ── */
+  /* ── WOCHENZIEL: im Menü an der Stelle des Titels, links neben den Flaggen ── */
+  body:not(.quiz):not(.konto) header h1 { display: none; }
+  body.quiz .woche, body.konto .woche { display: none; }
   .woche {
+    flex: 1;
+    min-width: 0;
     display: flex;
+    flex-wrap: wrap;
     align-items: baseline;
-    gap: 8px;
-    margin: -2px 0 14px;
-    padding: 0 2px;
-    font-size: 0.84rem;
+    column-gap: 8px;
+    padding-left: 2px;
+    font-size: 0.86rem;
+    line-height: 1.3;
     color: #b9a37a;
-    white-space: nowrap;
   }
-  .woche .w-rauten { font-size: 0.78rem; letter-spacing: 3px; color: var(--gold); }
-  .woche .w-txt { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .woche .w-rauten { font-size: 0.8rem; letter-spacing: 3px; color: var(--gold); }
+  .woche .w-txt { white-space: nowrap; }
   .woche b { color: var(--gold-hell); font-weight: 600; }
-  .woche .w-heute { font-style: italic; }
+  /* «heute noch 4 Fragen» als zweite, leisere Zeile */
+  .woche .w-heute { flex-basis: 100%; font-size: 0.8rem; font-style: italic; }
 
   /* ── SPRACHWAHL: zwei Flaggen rechts in der Kopfzeile ── */
   .sprachwahl { display: flex; gap: 6px; flex-shrink: 0; }
@@ -931,13 +936,13 @@
   <header>
     <button class="back-btn" onclick="zumMenu()" aria-label="Zurück zum Menü">←</button>
     <h1 id="kopf">✦ Sprachen Üben ✦</h1>
+    <div class="woche" id="woche"></div>
     <div class="sprachwahl" id="sprachwahl"></div>
   </header>
 
   <!-- ══ STARTMENÜ ══ -->
   <div id="menu">
     <div id="konto-leiste"></div>
-    <div class="woche" id="woche"></div>
     <button class="heute" id="heute-btn" style="display:none"></button>
     <button class="resume" id="resume-btn" style="display:none"></button>
     <div id="gruppen"></div>
@@ -1644,7 +1649,7 @@ function zeigeWoche() {
     <span class="w-rauten">${rauten(w.tage, WOCHEN_ZIEL)}</span>
     <span class="w-txt">${erreicht
       ? `<b>Wochenziel erreicht ✨</b>${w.tage > WOCHEN_ZIEL ? ` ${w.tage} Tage geübt` : ''}`
-      : `<b>${w.tage} von ${WOCHEN_ZIEL} Tagen</b> diese Woche geübt`}</span>
+      : `<b>${w.tage} von ${WOCHEN_ZIEL} Tagen</b> geübt`}</span>
     ${heute ? `<span class="w-heute">${heute}</span>` : ''}`;
 }
 
