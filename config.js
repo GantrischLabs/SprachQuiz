@@ -10,7 +10,7 @@
    ============================================================ */
 
 window.QUIZ_CONFIG = {
-  supabaseUrl: "https://xvkpmsbsyehrktntvguv.supabase.co/rest/v1/",              // Project Settings → Data API → Project URL
+  supabaseUrl: "https://xvkpmsbsyehrktntvguv.supabase.co",              // Project Settings → Data API → Project URL
   supabaseAnonKey: "sb_publishable_RRPTCEFuf-MFTyLhxCOVwQ_RBn404eh",          // Project Settings → API Keys → Publishable key
   registrierungErlaubt: true    // false = nur von Dir eingeladene Eltern können sich anmelden
 };
