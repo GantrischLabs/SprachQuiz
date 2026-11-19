@@ -1138,6 +1138,9 @@ const STUFE_SITZT = 4;
 const MAX_STUFE = 5;
 const NEU_PRO_TAG = 10;                    // neue Wörter pro Tag in «Heute fällig»
 const MIT_LERNSTAND = ['vokabeln', 'artikel', 'konjugation'];
+// Ab dieser Stufe steigt ein Wort nur noch, wenn es Deutsch→Fremdsprache
+// gewusst wurde. Fremdsprache→Deutsch hält es dann auf seiner Stufe.
+const STUFE_NUR_ABRUFEN = 2;
 
 // Fortlaufende Tagesnummer nach Ortszeit – ein Tag beginnt um Mitternacht
 function heuteTag() {
@@ -1168,13 +1171,20 @@ function lerne(k, richtig) {
   const alt = deckStand[k.schluessel];
   const w = alt || { s: 0, f: heute };
   const vorher = w.s;
+  // Karten aus älteren, angefangenen Runden haben noch keine Richtung: wie bisher behandeln
+  const nurErkannt = k.richtung === 'erkennen' && w.s >= STUFE_NUR_ABRUFEN;
+  let gebremst = false;
 
   if (!richtig) {
     w.s = Math.max(0, w.s - 1);
     w.f = heute;          // kommt heute nochmals
     w.t = heute;
   } else if (w.f <= heute) {
-    if (w.t === heute) {
+    if (nurErkannt) {
+      // Nur erkannt: zählt nicht als Fortschritt. Das Wort bleibt fällig
+      // und kommt in «Heute fällig» in der Richtung Deutsch→Fremdsprache.
+      gebremst = true;
+    } else if (w.t === heute) {
       // Heute schon einmal falsch: gilt als geübt, steigt aber erst morgen wieder
       w.f = heute + 1;
     } else {
@@ -1192,7 +1202,7 @@ function lerne(k, richtig) {
     t[sp] = (t[sp] || 0) + 1;
     daten.tagesNeu = t;
   }
-  return { vorher, nachher: w.s, neu: !alt };
+  return { vorher, nachher: w.s, neu: !alt, gebremst };
 }
 
 // Zählt für ein Deck: wie viele Wörter sitzen, wie viele sind unterwegs
@@ -1513,6 +1523,8 @@ function baueKarte(deck, eintrag, modus) {
     .map(w => nachDe ? w.de : w.fr)
     .filter(t => t !== korrekt);
   return Object.assign(basis, {
+    // Erkennen (Fremdsprache→Deutsch) ist leichter als selbst wissen (Deutsch→Fremdsprache)
+    richtung: nachDe ? 'erkennen' : 'abrufen',
     label: nachDe ? flagge : '🇩🇪 Deutsch',
     frage: nachDe ? eintrag.fr : eintrag.de,
     korrekt,
@@ -2015,7 +2027,8 @@ function pruefe(btn, gewaehlt, k) {
     el.innerHTML = neuSitzt
       ? '✨ Dieses Wort sitzt jetzt!'
       : `Stufe <span class="rauten">${'◆'.repeat(lern.nachher)}${'◇'.repeat(MAX_STUFE - lern.nachher)}</span>`
-        + (hoch ? ' ⬆' : lern.nachher < lern.vorher ? ' ⬇' : '');
+        + (hoch ? ' ⬆' : lern.nachher < lern.vorher ? ' ⬇' : '')
+        + (lern.gebremst ? ` · ⬆ nur mit 🇩🇪→${k.sprache === 'en' ? '🇬🇧' : '🇫🇷'}` : '');
   }
 
   // Beantwortete Frage gilt als erledigt – beim Fortsetzen geht es
