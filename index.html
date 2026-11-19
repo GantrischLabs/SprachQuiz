@@ -77,6 +77,13 @@
     gap: 10px;
     padding: 12px 0 10px;
   }
+  /* iPhone mit Notch/Dynamic Island: iOS verwischt unter der Statusleiste einen
+     Streifen, der etwas weiter reicht als der Sicherheitsabstand. Die Kopfzeile
+     rückt deshalb nur dort ein Stück tiefer. min(…, 1px) * 28 ergibt 28px, wenn
+     es einen Abstand gibt, sonst 0 – Computer und ältere Handys bleiben gleich. */
+  @supports (padding-top: env(safe-area-inset-top)) {
+    header { padding-top: calc(12px + min(env(safe-area-inset-top), 1px) * 28); }
+  }
 
   .back-btn {
     width: 40px; height: 40px;
