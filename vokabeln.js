@@ -12,8 +12,10 @@
 //
 //  schreiben: true – auf dem Blatt der Schule fettgedruckt, also «mündlich
 //  UND schriftlich zu lernen». Diese Wörter muss sie fehlerfrei schreiben
-//  können; alle anderen nur verstehen und sagen. Noch ohne Wirkung in der
-//  App, Grundlage für die Rechtschreib-Abfrage. Gepflegt für Unité 1 und 2.
+//  können; alle anderen nur verstehen und sagen. Diese Wörter werden in
+//  «Heute fällig» ab Stufe 2 geordnet und ab Stufe 3 geschrieben.
+//  Gepflegt für Französisch Unité 1 und 2 sowie Englisch Pre-Unit und
+//  Unit 1 Teil 1.
 //
 //  Der Lernstand eines Wortes (Stufe, nächste Wiederholung) hängt an
 //  der Deck-id und am Feld "fr". Wird "fr" korrigiert, beginnt dieses
@@ -238,8 +240,8 @@ const ER_VERBEN = [
 //    (das Feld heisst überall fr, egal welche Fremdsprache)
 // ════════════════════════════════════════════════════════════
 const EN_PRE_UNIT = [
-  { fr: "pen", de: "der Stift" },
-  { fr: "pencil", de: "der Bleistift" },
+  { fr: "pen", de: "der Stift", schreiben: true },
+  { fr: "pencil", de: "der Bleistift", schreiben: true },
   { fr: "teacher", de: "der Lehrer / die Lehrerin" },
   { fr: "ruler", de: "das Lineal" },
   { fr: "rubber", de: "der Radiergummi" },
@@ -248,11 +250,11 @@ const EN_PRE_UNIT = [
   { fr: "scissors", de: "die Schere" },
   { fr: "folder", de: "der Ordner" },
   { fr: "bin", de: "der Papierkorb" },
-  { fr: "desk", de: "das Pult" },
-  { fr: "chair", de: "der Stuhl" },
+  { fr: "desk", de: "das Pult", schreiben: true },
+  { fr: "chair", de: "der Stuhl", schreiben: true },
   { fr: "schoolbag", de: "der Schulsack" },
   { fr: "paper", de: "das Papier" },
-  { fr: "book", de: "das Buch" },
+  { fr: "book", de: "das Buch", schreiben: true },
   { fr: "sharpener", de: "der Spitzer" },
   { fr: "student", de: "der Schüler / die Schülerin" },
   { fr: "whiteboard", de: "die Wandtafel" },
@@ -260,8 +262,8 @@ const EN_PRE_UNIT = [
 
 // ── Englisch · Unit 1, Teil 1 (schriftlich / mündlich) ──
 const EN_U1_TEIL1 = [
-  { fr: "name", de: "der Name" },
-  { fr: "family", de: "die Familie" },
+  { fr: "name", de: "der Name", schreiben: true },
+  { fr: "family", de: "die Familie", schreiben: true },
   { fr: "I am from... / I'm from...", de: "Ich komme aus / von..." },
   { fr: "Who...?", de: "Wer?" },
   { fr: "sister", de: "die Schwester" },
@@ -271,8 +273,8 @@ const EN_U1_TEIL1 = [
   { fr: "What...?", de: "Welche...? Was...?" },
   { fr: "Where ... from?", de: "Woher...?" },
   { fr: "How...?", de: "Wie...?" },
-  { fr: "father", de: "der Vater" },
-  { fr: "mother", de: "die Mutter" },
+  { fr: "father", de: "der Vater", schreiben: true },
+  { fr: "mother", de: "die Mutter", schreiben: true },
   { fr: "English", de: "das Englisch" },
   { fr: "Swiss German", de: "das Schweizerdeutsch" },
 ];
