@@ -589,6 +589,104 @@
   }
   .ans-btn:disabled { cursor: default; }
 
+  /* ── RECHTSCHREIBUNG: Buchstaben ordnen ──── */
+  .ordnen { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .luecken {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px 16px;          /* Abstand zwischen Wörtern */
+  }
+  .l-wort { display: flex; gap: 3px; align-items: flex-end; }
+  .luecke {
+    width: 26px; height: 36px;
+    padding: 0;
+    border: none;
+    border-bottom: 2px solid var(--tinte-blass);
+    background: rgba(255,255,255,0.35);
+    border-radius: 4px 4px 0 0;
+    color: var(--tinte);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .luecke.voll { background: var(--pergament-hell); }
+  .luecke.gut { border-bottom-color: var(--correct); color: #1e5233; }
+  .luecke.schlecht { border-bottom-color: var(--wrong); color: #7d1f1f; background: #eed6d1; }
+  .fest { font-size: 1.35rem; font-weight: 700; color: var(--tinte-blass); padding: 0 1px 4px; }
+  .steine { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+  .stein {
+    width: 42px; height: 46px;
+    border: 1.5px solid var(--pergament-dunkel);
+    border-radius: 8px;
+    background: linear-gradient(180deg, var(--pergament-hell), #f0e0be);
+    color: var(--tinte);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size: 1.35rem;
+    font-weight: 700;
+    box-shadow: 0 2px 0 #c9b48a;
+  }
+  .stein:active:not(:disabled) { transform: translateY(2px); box-shadow: none; }
+  .stein:disabled { opacity: 0.2; box-shadow: none; }
+  .zurueck-btn {
+    min-width: 64px; min-height: 40px;
+    border: 1px solid var(--pergament-dunkel);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--tinte-blass);
+    font-size: 1.1rem;
+  }
+  .zurueck-btn:disabled { opacity: 0.3; }
+
+  /* ── RECHTSCHREIBUNG: selbst schreiben ───── */
+  .schreiben { display: flex; flex-direction: column; gap: 12px; }
+  .schreiben input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--pergament-dunkel);
+    border-radius: 8px;
+    background: var(--pergament-hell);
+    color: var(--tinte);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size: 1.3rem;      /* ab 16px zoomt iOS beim Antippen nicht hinein */
+    font-weight: 600;
+    text-align: center;
+  }
+  .schreiben input:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 3px rgba(201,162,39,0.25); }
+  .schreiben input.gut { border-color: var(--correct); background: #d8e8cf; }
+  .schreiben input.fast { border-color: #c27c2c; background: #f3e2c7; }
+  .schreiben input.schlecht { border-color: var(--wrong); background: #eed6d1; }
+  .akzente { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+  .akzent {
+    min-width: 38px; height: 40px;
+    border: 1px solid var(--pergament-dunkel);
+    border-radius: 6px;
+    background: var(--pergament-hell);
+    color: var(--tinte);
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size: 1.2rem;
+    font-weight: 600;
+  }
+  .akzent:disabled { opacity: 0.35; }
+  .pruefen-btn {
+    min-height: 48px;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #e9cf7a, #c9a227);
+    color: #2a1c10;
+    font-family: 'Cinzel', Georgia, serif;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+  .pruefen-btn:disabled { opacity: 0.4; }
+  .loesung:empty { display: none; }
+  .loesung { text-align: center; }
+  .loesung span { display: block; font-size: 0.82rem; font-style: italic; color: var(--tinte-blass); }
+  .loesung b { font-size: 1.35rem; letter-spacing: 0.02em; color: #1e5233; }
+  .loesung mark { background: #f6d58a; color: #7d1f1f; border-radius: 2px; padding: 0 1px; }
+  .feedback.fast { color: #a0601d; }
+
   /* ── RÜCKMELDUNG ─────────────────────────── */
   .feedback {
     margin-top: 18px;
@@ -1114,7 +1212,14 @@ function standardModus(deck) {
 function modiVon(deck) {
   const f = deck.sprache === 'en' ? '🇬🇧' : '🇫🇷';
   switch (deck.typ) {
-    case 'vokabeln':    return [{ id: 'f-d', label: `${f}→🇩🇪` }, { id: 'd-f', label: `🇩🇪→${f}` }];
+    case 'vokabeln': {
+      const modi = [{ id: 'f-d', label: `${f}→🇩🇪` }, { id: 'd-f', label: `🇩🇪→${f}` }];
+      // Listen mit fettgedruckten Wörtern: Rechtschreibung üben
+      if (deck.woerter.some(w => w.schreiben)) {
+        modi.push({ id: 'ordnen', label: '🧩 Ordnen' }, { id: 'schreiben', label: '✍️ Schreiben' });
+      }
+      return modi;
+    }
     case 'artikel':     return [{ id: 'artikel', label: 'un / une / des' }];
     case 'konjugation': return [{ id: 'konj', label: 'Formen' }];
     case 'zahlen':      return [{ id: 'num-f', label: '🔢→🇫🇷' }, { id: 'f-num', label: '🇫🇷→🔢' }];
@@ -1148,6 +1253,15 @@ const MIT_LERNSTAND = ['vokabeln', 'artikel', 'konjugation'];
 // Ab dieser Stufe steigt ein Wort nur noch, wenn es Deutsch→Fremdsprache
 // gewusst wurde. Fremdsprache→Deutsch hält es dann auf seiner Stufe.
 const STUFE_NUR_ABRUFEN = 2;
+// Fettgedruckte Wörter (schreiben: true) brauchen danach mehr:
+// Stufe 2→3 Buchstaben ordnen, ab Stufe 3 selbst schreiben.
+const RANG = { erkennen: 0, abrufen: 1, ordnen: 2, schreiben: 3 };
+function noetigerRang(k, stufe) {
+  if (stufe < STUFE_NUR_ABRUFEN) return 0;
+  if (!k.schreiben) return RANG.abrufen;
+  return stufe === STUFE_NUR_ABRUFEN ? RANG.ordnen : RANG.schreiben;
+}
+const RANG_HINWEIS = { 1: '🇩🇪→{f}', 2: '🧩 Ordnen', 3: '✍️ Schreiben' };
 
 // Fortlaufende Tagesnummer nach Ortszeit – ein Tag beginnt um Mitternacht
 function heuteTag() {
@@ -1179,8 +1293,16 @@ function lerne(k, richtig) {
   const w = alt || { s: 0, f: heute };
   const vorher = w.s;
   // Karten aus älteren, angefangenen Runden haben noch keine Richtung: wie bisher behandeln
-  const nurErkannt = k.richtung === 'erkennen' && w.s >= STUFE_NUR_ABRUFEN;
-  let gebremst = false;
+  const rang = k.richtung in RANG ? RANG[k.richtung] : Infinity;
+  const noetig = noetigerRang(k, w.s);
+  const nurErkannt = rang < noetig;
+  let gebremst = 0;
+
+  if (richtig === 'akzent') {
+    // Nur Akzente falsch: weder Auf- noch Abstieg, das Wort bleibt fällig
+    deckStand[k.schluessel] = w;
+    return { vorher, nachher: w.s, neu: !alt, gebremst: 0, akzent: true };
+  }
 
   if (!richtig) {
     w.s = Math.max(0, w.s - 1);
@@ -1190,7 +1312,7 @@ function lerne(k, richtig) {
     if (nurErkannt) {
       // Nur erkannt: zählt nicht als Fortschritt. Das Wort bleibt fällig
       // und kommt in «Heute fällig» in der Richtung Deutsch→Fremdsprache.
-      gebremst = true;
+      gebremst = noetig;
     } else if (w.t === heute) {
       // Heute schon einmal falsch: gilt als geübt, steigt aber erst morgen wieder
       w.f = heute + 1;
@@ -1304,9 +1426,14 @@ function rauten(voll, von) {
 
 // Je besser ein Wort sitzt, desto schwieriger die Richtung:
 // zuerst erkennen (🇫🇷→🇩🇪), ab Stufe 2 selbst wissen (🇩🇪→🇫🇷)
-function heuteModus(deck, stand) {
-  if (deck.typ === 'vokabeln') return stand && stand.s >= 2 ? 'd-f' : 'f-d';
-  return standardModus(deck);
+// Je besser ein Wort sitzt, desto anspruchsvoller die Abfrage.
+// Fettgedruckte Wörter: ab Stufe 2 Buchstaben ordnen, ab Stufe 3 schreiben.
+function heuteModus(deck, stand, eintrag) {
+  if (deck.typ !== 'vokabeln') return standardModus(deck);
+  const s = stand ? stand.s : 0;
+  if (s < STUFE_NUR_ABRUFEN) return 'f-d';
+  if (eintrag && eintrag.schreiben) return s === STUFE_NUR_ABRUFEN ? 'ordnen' : 'schreiben';
+  return 'd-f';
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1483,7 +1610,8 @@ function zahlenFalsche(num, modus) {
 // Erzeugt aus einem Eintrag die anzeigefertige Karte
 function baueKarte(deck, eintrag, modus) {
   const lang = sprachCode(deck);
-  const basis = { deckId: deck.id, schluessel: schluessel(eintrag), sprache: deck.sprache || 'fr' };
+  const basis = { deckId: deck.id, schluessel: schluessel(eintrag), sprache: deck.sprache || 'fr',
+                  schreiben: !!eintrag.schreiben };
 
   if (deck.typ === 'zahlen') {
     const numFr = modus === 'num-f';
@@ -1517,6 +1645,24 @@ function baueKarte(deck, eintrag, modus) {
       falsche: mische(eintrag.falsche).slice(0, 3),
       sprechFrage: null,
       sprechAntwort: { text: eintrag.sprechAntwort, lang },
+    });
+  }
+
+  // vokabeln – Rechtschreibung (nur fettgedruckte Wörter)
+  if (modus === 'ordnen' || modus === 'schreiben') {
+    const formen = schreibFormen(eintrag.fr);
+    const ziel = zufall(formen);   // «eine reicht»: abwechselnd eine der Formen
+    return Object.assign(basis, {
+      richtung: modus,
+      schreiben: true,
+      label: modus === 'ordnen' ? '🧩 Buchstaben ordnen' : '✍️ Schreib auf ' + (deck.sprache === 'en' ? 'Englisch' : 'Französisch'),
+      frage: eintrag.de,
+      korrekt: ziel,
+      // Beim Schreiben gilt jede der Formen, beim Ordnen die vorgegebene
+      formen: modus === 'schreiben' ? formen : [ziel],
+      falsche: [],
+      sprechFrage: { text: eintrag.de, lang: 'de-DE' },
+      sprechAntwort: { text: ziel, lang },
     });
   }
 
@@ -1557,15 +1703,95 @@ function fehlerEintraege() {
 function baueSession(deck, modus) {
   if (deck.typ === 'heute') {
     return mische(heuteEintraege(deck.sprache)).map(({ deck: d, eintrag, stand }) =>
-      baueKarte(d, eintrag, heuteModus(d, stand)));
+      baueKarte(d, eintrag, heuteModus(d, stand, eintrag)));
   }
+  const schreibModus = modus === 'ordnen' || modus === 'schreiben';
   const quelle = deck.typ === 'fehler'
     ? fehlerEintraege()
-    : deck.woerter.map(w => ({ deck, eintrag: w }));
+    : deck.woerter.filter(w => !schreibModus || w.schreiben).map(w => ({ deck, eintrag: w }));
   return mische(quelle)
     .slice(0, LIMIT)
     .map(({ deck: d, eintrag }) =>
       baueKarte(d, eintrag, deck.typ === 'fehler' ? standardModus(d) : modus));
+}
+
+// ════════════════════════════════════════════════════════════
+//  RECHTSCHREIBUNG
+// ════════════════════════════════════════════════════════════
+
+// Schreibbare Formen eines Eintrags: Hinweise wie «(m pl)» fallen weg,
+// «la mère / la maman» ergibt zwei Formen, «un / une enfant» ebenfalls.
+function schreibFormen(fr) {
+  const ohneHinweis = fr.replace(/\s*\((?:m|f)(?:\s*pl)?\)/g, '').trim();
+  const teile = ohneHinweis.split(/\s+\/\s+/);
+  if (teile.length === 2 && /^(un|une|le|la|les)$/i.test(teile[0])) {
+    const nomen = teile[1].replace(/^(un|une|le|la|les)\s+/i, '');
+    return [teile[0] + ' ' + nomen, teile[1]];
+  }
+  return teile;
+}
+
+// Für den Vergleich: Gross/klein, Apostroph-Art, Leerzeichen und der
+// Schlusspunkt zählen nicht. œ gilt wie oe (das Blatt schreibt «soeur»).
+function normal(t) {
+  return String(t).normalize('NFC').toLowerCase()
+    .replace(/[’‘`´]/g, "'")
+    .replace(/œ/g, 'oe').replace(/æ/g, 'ae')
+    .replace(/\s+([?!:;.,])/g, '$1')
+    .replace(/[.!?\s]+$/, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function ohneAkzente(t) {
+  return normal(t).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+// 'richtig' | 'akzent' (nur Akzente falsch) | 'falsch'
+function bewerteSchreibung(eingabe, formen) {
+  if (formen.some(f => normal(f) === normal(eingabe))) return 'richtig';
+  if (formen.some(f => ohneAkzente(f) === ohneAkzente(eingabe))) return 'akzent';
+  return 'falsch';
+}
+
+// Die Form, der die Eingabe am nächsten kommt – für die Anzeige der Lösung
+function naechsteForm(eingabe, formen) {
+  const e = normal(eingabe);
+  let beste = formen[0], best = -1;
+  formen.forEach(f => { const n = lcs(e, normal(f)).length; if (n > best) { best = n; beste = f; } });
+  return beste;
+}
+
+// Längste gemeinsame Teilfolge zweier Zeichenketten → Liste von [i, j]
+function lcs(a, b) {
+  const A = [...a], B = [...b];
+  const t = Array.from({ length: A.length + 1 }, () => new Array(B.length + 1).fill(0));
+  for (let i = A.length - 1; i >= 0; i--)
+    for (let j = B.length - 1; j >= 0; j--)
+      t[i][j] = A[i] === B[j] ? t[i + 1][j + 1] + 1 : Math.max(t[i + 1][j], t[i][j + 1]);
+  const paare = [];
+  let i = 0, j = 0;
+  while (i < A.length && j < B.length) {
+    if (A[i] === B[j]) { paare.push([i, j]); i++; j++; }
+    else if (t[i + 1][j] >= t[i][j + 1]) i++;
+    else j++;
+  }
+  return paare;
+}
+
+// Lösung Buchstabe für Buchstabe: was in der Eingabe fehlte oder anders war, ist markiert
+function loesungMarkiert(eingabe, ziel) {
+  const z = [...ziel];
+  const zl = z.map(c => c.toLowerCase());
+  const el = [...String(eingabe).toLowerCase().replace(/[’‘`´]/g, "'")];
+  const treffer = new Set(lcs(el, zl).map(p => p[1]));
+  return z.map((c, i) => {
+    const h = esc(c);
+    return treffer.has(i) || /\s/.test(c) ? h : `<mark>${h}</mark>`;
+  }).join('');
+}
+
+function esc(t) {
+  return String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1919,6 +2145,9 @@ function zeichneFrage() {
       </div>
     </div>`;
 
+  if (k.richtung === 'ordnen') { zeichneOrdnen(k); return; }
+  if (k.richtung === 'schreiben') { zeichneSchreiben(k); return; }
+
   const box = document.getElementById('answers');
   const frag = document.createDocumentFragment();
   optionen.forEach(opt => {
@@ -1996,15 +2225,22 @@ function pruefe(btn, gewaehlt, k) {
     if (b.textContent === k.korrekt) b.classList.add('correct');
   });
 
-  const feedback = document.getElementById('feedback');
   const richtig = gewaehlt === k.korrekt;
+  btn.classList.add(richtig ? 'correct' : 'wrong');
+  bewerte(k, richtig ? 'richtig' : 'falsch', btn);
+}
+
+// Gemeinsamer Teil für alle Fragearten.
+// ergebnis: 'richtig' | 'falsch' | 'akzent' (nur bei Schreiben)
+function bewerte(k, ergebnis, anker) {
+  const feedback = document.getElementById('feedback');
+  const richtig = ergebnis === 'richtig';
 
   if (richtig) {
-    btn.classList.add('correct');
     aktuell.score++;
     serie++;
     const xp = gibXP(k.sprache, serie);
-    zeigeXPGewinn(xp, serie, btn);
+    zeigeXPGewinn(xp, serie, anker);
     document.getElementById('score-info').textContent =
       `✅ ${aktuell.score} richtig` + (serie >= 2 ? `  🔥 ${serie}` : '');
     feedback.textContent = zufall(lobText[k.sprache] || lobText.fr);
@@ -2012,8 +2248,13 @@ function pruefe(btn, gewaehlt, k) {
     tonRichtig();
     // Im Fehler-Deck gilt das Wort damit als aufgeholt
     if (aktuell.deck.typ === 'fehler') loescheFehler(k);
+  } else if (ergebnis === 'akzent') {
+    // Fast richtig: zählt nicht, landet aber auch nicht in «Meine Fehler»
+    serie = 0;
+    feedback.textContent = 'Fast! Nur die Akzente stimmen nicht.';
+    feedback.className = 'feedback fast';
+    tonFalsch();
   } else {
-    btn.classList.add('wrong');
     serie = 0;
     feedback.textContent = zufall(trostText[k.sprache] || trostText.fr);
     feedback.className = 'feedback wrong';
@@ -2024,7 +2265,7 @@ function pruefe(btn, gewaehlt, k) {
   if (zaehleAntwort()) aktuell.tagNeu = true;
 
   // Lernstand des Wortes nachführen und zeigen
-  const lern = lerne(k, richtig);
+  const lern = lerne(k, ergebnis === 'akzent' ? 'akzent' : richtig);
   if (lern) {
     const hoch = lern.nachher > lern.vorher;
     if (hoch) aktuell.aufstiege++;
@@ -2035,7 +2276,7 @@ function pruefe(btn, gewaehlt, k) {
       ? '✨ Dieses Wort sitzt jetzt!'
       : `Stufe <span class="rauten">${'◆'.repeat(lern.nachher)}${'◇'.repeat(MAX_STUFE - lern.nachher)}</span>`
         + (hoch ? ' ⬆' : lern.nachher < lern.vorher ? ' ⬇' : '')
-        + (lern.gebremst ? ` · ⬆ nur mit 🇩🇪→${k.sprache === 'en' ? '🇬🇧' : '🇫🇷'}` : '');
+        + (lern.gebremst ? ` · ⬆ nur mit ${RANG_HINWEIS[lern.gebremst].replace('{f}', k.sprache === 'en' ? '🇬🇧' : '🇫🇷')}` : '');
   }
 
   // Beantwortete Frage gilt als erledigt – beim Fortsetzen geht es
@@ -2047,13 +2288,161 @@ function pruefe(btn, gewaehlt, k) {
     sprechTimer = setTimeout(() => sprich(k.sprechAntwort.text, k.sprechAntwort.lang), 600);
   }
 
-  const dauer = richtig ? 2500 : 6000;
+  // Beim Schreiben bleibt mehr Zeit, um die markierten Buchstaben anzuschauen
+  const dauer = richtig ? 2500 : (k.richtung === 'ordnen' || k.richtung === 'schreiben') ? 9000 : 6000;
   const next = document.getElementById('next-btn');
   next.classList.remove('hidden');
   next.style.setProperty('--countdown-dur', (dauer / 1000) + 's');
   void next.offsetWidth;
   next.classList.add('counting');
   weiterTimer = setTimeout(naechsteFrage, dauer);
+}
+
+// ── Buchstaben ordnen ──
+// Lücken für jeden Buchstaben; Leerzeichen, Apostroph, Bindestrich und
+// Satzzeichen stehen schon da. Antippen füllt die nächste Lücke,
+// Antippen einer gefüllten Lücke legt den Buchstaben zurück.
+function zeichneOrdnen(k) {
+  // Klein geschrieben: Gross/klein zählt nicht, und «I» und «l» sähen sonst gleich aus
+  const ziel = [...k.korrekt.toLowerCase()];
+  const istBuchstabe = c => /\p{L}/u.test(c);
+  const plaetze = ziel.map((c, i) => istBuchstabe(c) ? i : -1).filter(i => i >= 0);
+  // Mischen, bis die Reihenfolge nicht zufällig schon stimmt
+  let steine = plaetze.map(i => ziel[i]);
+  for (let n = 0; n < 5; n++) {
+    steine = mische(steine);
+    if (steine.join('') !== plaetze.map(i => ziel[i]).join('') || steine.length < 2) break;
+  }
+  const belegt = new Array(ziel.length).fill(null);   // Platz → Stein-Index
+
+  // Wörter zusammenhalten, damit am Zeilenende nicht mitten im Wort umbrochen wird
+  const woerter = [];
+  let wort = [];
+  ziel.forEach((c, i) => {
+    if (c === ' ') { if (wort.length) woerter.push(wort); wort = []; }
+    else wort.push(i);
+  });
+  if (wort.length) woerter.push(wort);
+
+  document.getElementById('answers').outerHTML = `
+    <div class="ordnen">
+      <div class="luecken" id="luecken">${woerter.map(w => `<span class="l-wort">${w.map(i => istBuchstabe(ziel[i])
+        ? `<button class="luecke" data-i="${i}" aria-label="Lücke"></button>`
+        : `<span class="fest">${esc(ziel[i])}</span>`).join('')}</span>`).join('')}</div>
+      <div class="steine" id="steine">${steine.map((c, j) =>
+        `<button class="stein" data-j="${j}">${esc(c)}</button>`).join('')}</div>
+      <button class="zurueck-btn" id="zurueck-btn" title="Letzten Buchstaben zurück">⌫</button>
+    </div>`;
+
+  const luecken = [...document.querySelectorAll('#luecken .luecke')];
+  const steinBtns = [...document.querySelectorAll('#steine .stein')];
+  const verlauf = [];
+
+  const setze = j => {
+    if (aktuell.beantwortet) return;
+    const frei = luecken.find(l => belegt[+l.dataset.i] === null);
+    if (!frei) return;
+    const i = +frei.dataset.i;
+    belegt[i] = j;
+    frei.textContent = steine[j];
+    frei.classList.add('voll');
+    steinBtns[j].disabled = true;
+    verlauf.push(i);
+    if (luecken.every(l => belegt[+l.dataset.i] !== null)) setTimeout(pruefeOrdnen, 250);
+  };
+  const leere = i => {
+    if (aktuell.beantwortet || belegt[i] === null) return;
+    steinBtns[belegt[i]].disabled = false;
+    belegt[i] = null;
+    const l = luecken.find(x => +x.dataset.i === i);
+    l.textContent = '';
+    l.classList.remove('voll');
+    verlauf.splice(verlauf.lastIndexOf(i), 1);
+  };
+  const pruefeOrdnen = () => {
+    if (aktuell.beantwortet) return;
+    if (!luecken.every(l => belegt[+l.dataset.i] !== null)) return;
+    aktuell.beantwortet = true;
+    stoppeTimer();
+    const gelegt = ziel.map((c, i) => belegt[i] === null ? c : steine[belegt[i]]).join('');
+    const richtig = gelegt.toLowerCase() === k.korrekt.toLowerCase();
+    luecken.forEach(l => {
+      const i = +l.dataset.i;
+      l.disabled = true;
+      l.classList.add(steine[belegt[i]].toLowerCase() === ziel[i].toLowerCase() ? 'gut' : 'schlecht');
+    });
+    steinBtns.forEach(b => { b.disabled = true; });
+    document.getElementById('zurueck-btn').disabled = true;
+    if (!richtig) zeigeLoesung(gelegt, k.korrekt);
+    bewerte(k, richtig ? 'richtig' : 'falsch', document.getElementById('luecken'));
+  };
+
+  steinBtns.forEach(b => b.addEventListener('click', () => setze(+b.dataset.j)));
+  luecken.forEach(l => l.addEventListener('click', () => leere(+l.dataset.i)));
+  document.getElementById('zurueck-btn').addEventListener('click', () => {
+    if (verlauf.length) leere(verlauf[verlauf.length - 1]);
+  });
+  if (vorlesen && k.sprechFrage) setTimeout(sprichFrage, 300);
+}
+
+// ── Selbst schreiben ──
+const AKZENTE = { fr: ['é', 'è', 'ê', 'à', 'â', 'ç', 'ô', 'î', 'û', 'ù', 'ë', 'ï', 'œ', "'"], en: ["'"] };
+
+function zeichneSchreiben(k) {
+  const tasten = AKZENTE[k.sprache] || AKZENTE.fr;
+  document.getElementById('answers').outerHTML = `
+    <form class="schreiben" id="schreiben" autocomplete="off" onsubmit="return false">
+      <input id="eingabe" type="text" inputmode="text" enterkeyhint="done"
+             autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"
+             aria-label="Antwort schreiben" placeholder="hier schreiben …">
+      <div class="akzente">${tasten.map(t =>
+        `<button type="button" class="akzent" data-t="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+      <button type="submit" class="pruefen-btn" id="pruefen-btn">Prüfen</button>
+      <div class="loesung" id="loesung"></div>
+    </form>`;
+
+  const feld = document.getElementById('eingabe');
+  document.querySelectorAll('#schreiben .akzent').forEach(b => {
+    // pointerdown + preventDefault: das Feld behält den Fokus, die Tastatur bleibt offen
+    b.addEventListener('pointerdown', e => e.preventDefault());
+    b.addEventListener('click', () => {
+      if (aktuell.beantwortet) return;
+      const a = feld.selectionStart ?? feld.value.length, z = feld.selectionEnd ?? a;
+      feld.value = feld.value.slice(0, a) + b.dataset.t + feld.value.slice(z);
+      feld.setSelectionRange(a + b.dataset.t.length, a + b.dataset.t.length);
+      feld.focus();
+    });
+  });
+
+  document.getElementById('schreiben').addEventListener('submit', () => {
+    if (aktuell.beantwortet) return;
+    const eingabe = feld.value;
+    if (!eingabe.trim()) { feld.focus(); return; }
+    aktuell.beantwortet = true;
+    stoppeTimer();
+    const ergebnis = bewerteSchreibung(eingabe, k.formen || [k.korrekt]);
+    feld.readOnly = true;
+    feld.classList.add(ergebnis === 'richtig' ? 'gut' : ergebnis === 'akzent' ? 'fast' : 'schlecht');
+    feld.blur();   // Tastatur zu, damit die Rückmeldung sichtbar ist
+    document.querySelectorAll('#schreiben .akzent, #pruefen-btn').forEach(b => { b.disabled = true; });
+    if (ergebnis !== 'richtig') zeigeLoesung(eingabe, naechsteForm(eingabe, k.formen || [k.korrekt]));
+    bewerte(k, ergebnis, feld);
+  });
+
+  // Fokus nur, wenn die Frage durch Antippen kam – sonst öffnet iOS die Tastatur ohnehin nicht
+  setTimeout(() => feld.focus({ preventScroll: true }), 50);
+  if (vorlesen && k.sprechFrage) setTimeout(sprichFrage, 300);
+}
+
+function zeigeLoesung(eingabe, ziel) {
+  let el = document.getElementById('loesung');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'loesung';
+    el.id = 'loesung';
+    document.querySelector('.ordnen').appendChild(el);
+  }
+  el.innerHTML = `<span>Richtig geschrieben</span><b>${loesungMarkiert(eingabe, ziel)}</b>`;
 }
 
 function naechsteFrage() {
