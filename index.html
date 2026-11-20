@@ -632,6 +632,12 @@
   .stein.weg { display: none; }
   /* Wortweise: das Wort, an dem sie gerade ist */
   .l-wort.aktiv .luecke { border-bottom-color: var(--gold); background: rgba(201,162,39,0.18); }
+  /* Ausgewählte Lücke: hier landet der nächste Stein */
+  .luecke.cursor {
+    border-bottom: 3px solid #a8831c;
+    background: rgba(201,162,39,0.38);
+    box-shadow: inset 0 0 0 1.5px #c9a227;
+  }
   .zurueck-btn {
     min-width: 64px; min-height: 40px;
     border: 1px solid var(--pergament-dunkel);
@@ -2303,10 +2309,12 @@ function bewerte(k, ergebnis, anker) {
 
 // ── Buchstaben ordnen ──
 // Lücken für jeden Buchstaben; Leerzeichen, Apostroph, Bindestrich und
-// Satzzeichen stehen schon da. Antippen füllt die nächste Lücke,
-// Antippen einer gefüllten Lücke legt den Buchstaben zurück.
+// Satzzeichen stehen schon da. Eine Lücke ist ausgewählt (goldener Rand):
+// Ein Stein landet dort, danach springt die Auswahl zur nächsten freien
+// Lücke. Antippen einer leeren Lücke wählt sie aus, Antippen einer
+// gefüllten legt den Buchstaben zurück und wählt die Lücke aus.
 // Lange Einträge werden Wort für Wort gelegt: Es liegen nur die Steine
-// des Wortes bereit, an dem sie gerade ist.
+// des Wortes bereit, in dem die ausgewählte Lücke liegt.
 const ORDNEN_WORTWEISE_AB = 10;   // Buchstaben
 
 function zeichneOrdnen(k) {
@@ -2363,38 +2371,60 @@ function zeichneOrdnen(k) {
   const wortSpans = [...document.querySelectorAll('#luecken .l-wort')];
   const verlauf = [];
   const ersteFreie = () => luecken.find(l => belegt[+l.dataset.i] === null);
+  const lueckeVon = i => luecken.find(x => +x.dataset.i === i);
+  let auswahl = null;   // Platz-Index der ausgewählten Lücke
 
-  // Wortweise: nur die Steine des aktuellen Wortes zeigen und das Wort hervorheben
-  const zeigeAktuellesWort = () => {
+  // Nächste freie Lücke nach Platz i: zuerst im selben Wort, dann danach, dann von vorne
+  const naechsteFreie = i => {
+    const frei = luecken.filter(l => belegt[+l.dataset.i] === null).map(l => +l.dataset.i);
+    if (!frei.length) return null;
+    const w = wortVon.get(i);
+    return frei.find(x => x > i && wortVon.get(x) === w)
+      ?? frei.find(x => x > i)
+      ?? frei[0];
+  };
+
+  // Auswahl zeigen; wortweise: nur die Steine dieses Wortes und das Wort hervorheben
+  const zeigeAuswahl = () => {
+    if (auswahl === null || belegt[auswahl] !== null) {
+      const f = ersteFreie();
+      auswahl = f ? +f.dataset.i : null;
+    }
+    luecken.forEach(l => l.classList.toggle('cursor', +l.dataset.i === auswahl));
     if (!wortweise) return;
-    const frei = ersteFreie();
-    const w = frei ? wortVon.get(+frei.dataset.i) : -2;
+    const w = auswahl === null ? -2 : wortVon.get(auswahl);
     steinBtns.forEach(b => b.classList.toggle('weg', +b.dataset.w !== w));
     wortSpans.forEach(s => s.classList.toggle('aktiv', +s.dataset.w === w));
   };
 
   const setze = j => {
-    if (aktuell.beantwortet) return;
-    const frei = ersteFreie();
-    if (!frei) return;
-    const i = +frei.dataset.i;
+    if (aktuell.beantwortet || auswahl === null) return;
+    const i = auswahl;
+    const l = lueckeVon(i);
     belegt[i] = j;
-    frei.textContent = steine[j].c;
-    frei.classList.add('voll');
+    l.textContent = steine[j].c;
+    l.classList.add('voll');
     steinBtns[j].disabled = true;
     verlauf.push(i);
-    zeigeAktuellesWort();
+    auswahl = naechsteFreie(i);
+    zeigeAuswahl();
     if (!ersteFreie()) setTimeout(pruefeOrdnen, 250);
   };
   const leere = i => {
     if (aktuell.beantwortet || belegt[i] === null) return;
     steinBtns[belegt[i]].disabled = false;
     belegt[i] = null;
-    const l = luecken.find(x => +x.dataset.i === i);
+    const l = lueckeVon(i);
     l.textContent = '';
     l.classList.remove('voll');
     verlauf.splice(verlauf.lastIndexOf(i), 1);
-    zeigeAktuellesWort();
+  };
+  // Antippen einer Lücke: gefüllt → Buchstabe zurück; in jedem Fall auswählen
+  const tippeLuecke = i => {
+    if (aktuell.beantwortet) return;
+    leere(i);
+    auswahl = i;
+    zeigeAuswahl();
   };
   const pruefeOrdnen = () => {
     if (aktuell.beantwortet || ersteFreie()) return;
@@ -2413,6 +2443,7 @@ function zeichneOrdnen(k) {
       l.classList.add(passt.has(n) ? 'gut' : 'schlecht');
     });
     wortSpans.forEach(s => s.classList.remove('aktiv'));
+    luecken.forEach(l => l.classList.remove('cursor'));
     steinBtns.forEach(b => { b.disabled = true; });
     document.getElementById('zurueck-btn').disabled = true;
     if (!richtig) zeigeLoesung(gelegt, k.korrekt);
@@ -2420,11 +2451,11 @@ function zeichneOrdnen(k) {
   };
 
   steinBtns.forEach(b => b.addEventListener('click', () => setze(+b.dataset.j)));
-  luecken.forEach(l => l.addEventListener('click', () => leere(+l.dataset.i)));
+  luecken.forEach(l => l.addEventListener('click', () => tippeLuecke(+l.dataset.i)));
   document.getElementById('zurueck-btn').addEventListener('click', () => {
-    if (verlauf.length) leere(verlauf[verlauf.length - 1]);
+    if (verlauf.length) tippeLuecke(verlauf[verlauf.length - 1]);
   });
-  zeigeAktuellesWort();
+  zeigeAuswahl();
   if (vorlesen && k.sprechFrage) setTimeout(sprichFrage, 300);
 }
 
