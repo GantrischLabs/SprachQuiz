@@ -629,6 +629,9 @@
   }
   .stein:active:not(:disabled) { transform: translateY(2px); box-shadow: none; }
   .stein:disabled { opacity: 0.2; box-shadow: none; }
+  .stein.weg { display: none; }
+  /* Wortweise: das Wort, an dem sie gerade ist */
+  .l-wort.aktiv .luecke { border-bottom-color: var(--gold); background: rgba(201,162,39,0.18); }
   .zurueck-btn {
     min-width: 64px; min-height: 40px;
     border: 1px solid var(--pergament-dunkel);
@@ -2302,18 +2305,14 @@ function bewerte(k, ergebnis, anker) {
 // Lücken für jeden Buchstaben; Leerzeichen, Apostroph, Bindestrich und
 // Satzzeichen stehen schon da. Antippen füllt die nächste Lücke,
 // Antippen einer gefüllten Lücke legt den Buchstaben zurück.
+// Lange Einträge werden Wort für Wort gelegt: Es liegen nur die Steine
+// des Wortes bereit, an dem sie gerade ist.
+const ORDNEN_WORTWEISE_AB = 10;   // Buchstaben
+
 function zeichneOrdnen(k) {
   // Klein geschrieben: Gross/klein zählt nicht, und «I» und «l» sähen sonst gleich aus
   const ziel = [...k.korrekt.toLowerCase()];
   const istBuchstabe = c => /\p{L}/u.test(c);
-  const plaetze = ziel.map((c, i) => istBuchstabe(c) ? i : -1).filter(i => i >= 0);
-  // Mischen, bis die Reihenfolge nicht zufällig schon stimmt
-  let steine = plaetze.map(i => ziel[i]);
-  for (let n = 0; n < 5; n++) {
-    steine = mische(steine);
-    if (steine.join('') !== plaetze.map(i => ziel[i]).join('') || steine.length < 2) break;
-  }
-  const belegt = new Array(ziel.length).fill(null);   // Platz → Stein-Index
 
   // Wörter zusammenhalten, damit am Zeilenende nicht mitten im Wort umbrochen wird
   const woerter = [];
@@ -2324,31 +2323,68 @@ function zeichneOrdnen(k) {
   });
   if (wort.length) woerter.push(wort);
 
+  const plaetze = ziel.map((c, i) => istBuchstabe(c) ? i : -1).filter(i => i >= 0);
+  const wortVon = new Map();
+  woerter.forEach((w, wi) => w.forEach(i => wortVon.set(i, wi)));
+  const wortweise = woerter.length > 1 && plaetze.length > ORDNEN_WORTWEISE_AB;
+
+  // Steine: pro Wort gemischt (wortweise) oder alle zusammen
+  const mischeBis = (buchst) => {
+    let m = buchst;
+    for (let n = 0; n < 5; n++) {
+      m = mische(buchst);
+      if (m.join('') !== buchst.join('') || new Set(buchst).size < 2) break;
+    }
+    return m;
+  };
+  let steine = [];   // { c, w }
+  if (wortweise) {
+    woerter.forEach((w, wi) => {
+      const buchst = w.filter(i => istBuchstabe(ziel[i])).map(i => ziel[i]);
+      mischeBis(buchst).forEach(c => steine.push({ c, w: wi }));
+    });
+  } else {
+    steine = mischeBis(plaetze.map(i => ziel[i])).map(c => ({ c, w: -1 }));
+  }
+  const belegt = new Array(ziel.length).fill(null);   // Platz → Stein-Index
+
   document.getElementById('answers').outerHTML = `
     <div class="ordnen">
-      <div class="luecken" id="luecken">${woerter.map(w => `<span class="l-wort">${w.map(i => istBuchstabe(ziel[i])
+      <div class="luecken" id="luecken">${woerter.map((w, wi) => `<span class="l-wort" data-w="${wi}">${w.map(i => istBuchstabe(ziel[i])
         ? `<button class="luecke" data-i="${i}" aria-label="Lücke"></button>`
         : `<span class="fest">${esc(ziel[i])}</span>`).join('')}</span>`).join('')}</div>
-      <div class="steine" id="steine">${steine.map((c, j) =>
-        `<button class="stein" data-j="${j}">${esc(c)}</button>`).join('')}</div>
+      <div class="steine" id="steine">${steine.map((st, j) =>
+        `<button class="stein" data-j="${j}" data-w="${st.w}">${esc(st.c)}</button>`).join('')}</div>
       <button class="zurueck-btn" id="zurueck-btn" title="Letzten Buchstaben zurück">⌫</button>
     </div>`;
 
   const luecken = [...document.querySelectorAll('#luecken .luecke')];
   const steinBtns = [...document.querySelectorAll('#steine .stein')];
+  const wortSpans = [...document.querySelectorAll('#luecken .l-wort')];
   const verlauf = [];
+  const ersteFreie = () => luecken.find(l => belegt[+l.dataset.i] === null);
+
+  // Wortweise: nur die Steine des aktuellen Wortes zeigen und das Wort hervorheben
+  const zeigeAktuellesWort = () => {
+    if (!wortweise) return;
+    const frei = ersteFreie();
+    const w = frei ? wortVon.get(+frei.dataset.i) : -2;
+    steinBtns.forEach(b => b.classList.toggle('weg', +b.dataset.w !== w));
+    wortSpans.forEach(s => s.classList.toggle('aktiv', +s.dataset.w === w));
+  };
 
   const setze = j => {
     if (aktuell.beantwortet) return;
-    const frei = luecken.find(l => belegt[+l.dataset.i] === null);
+    const frei = ersteFreie();
     if (!frei) return;
     const i = +frei.dataset.i;
     belegt[i] = j;
-    frei.textContent = steine[j];
+    frei.textContent = steine[j].c;
     frei.classList.add('voll');
     steinBtns[j].disabled = true;
     verlauf.push(i);
-    if (luecken.every(l => belegt[+l.dataset.i] !== null)) setTimeout(pruefeOrdnen, 250);
+    zeigeAktuellesWort();
+    if (!ersteFreie()) setTimeout(pruefeOrdnen, 250);
   };
   const leere = i => {
     if (aktuell.beantwortet || belegt[i] === null) return;
@@ -2358,19 +2394,25 @@ function zeichneOrdnen(k) {
     l.textContent = '';
     l.classList.remove('voll');
     verlauf.splice(verlauf.lastIndexOf(i), 1);
+    zeigeAktuellesWort();
   };
   const pruefeOrdnen = () => {
-    if (aktuell.beantwortet) return;
-    if (!luecken.every(l => belegt[+l.dataset.i] !== null)) return;
+    if (aktuell.beantwortet || ersteFreie()) return;
     aktuell.beantwortet = true;
     stoppeTimer();
-    const gelegt = ziel.map((c, i) => belegt[i] === null ? c : steine[belegt[i]]).join('');
-    const richtig = gelegt.toLowerCase() === k.korrekt.toLowerCase();
-    luecken.forEach(l => {
-      const i = +l.dataset.i;
+    const gelegt = ziel.map((c, i) => belegt[i] === null ? c : steine[belegt[i]].c).join('');
+    const richtig = gelegt === ziel.join('');
+    // Nur die Buchstaben markieren, die wirklich falsch liegen: Ein fehlender
+    // oder verschobener Buchstabe soll nicht alle folgenden rot färben
+    const soll = plaetze.map(i => ziel[i]);
+    const ist = plaetze.map(i => steine[belegt[i]].c);
+    const passt = new Set(lcs(ist, soll).map(p => p[0]));
+    plaetze.forEach((i, n) => {
+      const l = luecken.find(x => +x.dataset.i === i);
       l.disabled = true;
-      l.classList.add(steine[belegt[i]].toLowerCase() === ziel[i].toLowerCase() ? 'gut' : 'schlecht');
+      l.classList.add(passt.has(n) ? 'gut' : 'schlecht');
     });
+    wortSpans.forEach(s => s.classList.remove('aktiv'));
     steinBtns.forEach(b => { b.disabled = true; });
     document.getElementById('zurueck-btn').disabled = true;
     if (!richtig) zeigeLoesung(gelegt, k.korrekt);
@@ -2382,6 +2424,7 @@ function zeichneOrdnen(k) {
   document.getElementById('zurueck-btn').addEventListener('click', () => {
     if (verlauf.length) leere(verlauf[verlauf.length - 1]);
   });
+  zeigeAktuellesWort();
   if (vorlesen && k.sprechFrage) setTimeout(sprichFrage, 300);
 }
 
