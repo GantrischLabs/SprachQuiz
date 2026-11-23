@@ -19,7 +19,7 @@ Solange `config.js` leer ist, läuft das Quiz genau wie bisher. Der Fortschritt 
 1. **Projekt anlegen:** Auf [supabase.com](https://supabase.com) ein neues Projekt anlegen, z.B. `sprachen-quiz`. Ein Gratis-Konto erlaubt zwei Projekte, die Boulder-App nutzt das andere. Als Region eine europäische wählen (Zürich, falls angeboten, sonst Frankfurt).
 2. **Tabellen anlegen:** Im **SQL Editor** den Inhalt von [`setup.sql`](setup.sql) einfügen und **Run** klicken. Das Skript darf später erneut laufen.
 3. **Adresse eintragen (wichtig für die Mails):** Unter **Authentication → URL Configuration**:
-   - *Site URL*: die GitHub-Pages-Adresse des Quiz, z.B. `https://maendeni.github.io/Franz_Quiz_4KL_Wetter/`
+   - *Site URL*: die Adresse des Quiz, `https://sprachquiz.gantrischlabs.ch/`
    - *Redirect URLs*: dieselbe Adresse nochmals hinzufügen.
 
    Ohne diesen Schritt führen die Links in der Bestätigungs- und der Passwort-Mail ins Leere.
