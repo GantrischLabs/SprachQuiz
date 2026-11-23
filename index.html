@@ -275,13 +275,46 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  .group-head .niveau {
-    font-size: 0.72rem;
-    font-weight: 700;
-    color: #9c7f4e;
-    white-space: nowrap;
-  }
   .group-head .chev { font-size: 0.7rem; color: #9c7f4e; transition: transform 0.2s ease; }
+
+  /* Sterne pro Unité in der Kopfzeile; antippen zeigt die Etappen */
+  .sterne {
+    display: inline-flex;
+    gap: 1px;
+    padding: 4px 6px;
+    margin: -4px 0;
+    border-radius: 12px;
+    font-size: 0.95rem;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .sterne i { font-style: normal; color: #6e5a37; }
+  .sterne i.voll { color: var(--gold); text-shadow: 0 0 6px rgba(201,162,39,0.45); }
+  .sterne.krone { font-size: 1.15rem; }
+  .sterne:focus-visible { outline: 2px solid var(--gold-hell); outline-offset: 1px; }
+  .etappen[hidden] { display: none; }
+  .etappen {
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border: 1px solid rgba(201,162,39,0.3);
+    border-radius: var(--radius);
+    background: rgba(36,26,19,0.75);
+    font-size: 0.86rem;
+    line-height: 1.35;
+    color: #b9a37a;
+  }
+  .etappe { display: flex; gap: 8px; padding: 3px 0; }
+  .etappe .e-stern { width: 1.2em; flex-shrink: 0; text-align: center; color: #6e5a37; }
+  .etappe.ok .e-stern { color: var(--gold); }
+  .etappe b { color: var(--gold-hell); font-weight: 600; }
+  .etappe em { display: block; font-size: 0.8rem; color: #8f7a55; }
+  .etappe.krone-zeile { margin-top: 4px; padding-top: 7px; border-top: 1px solid rgba(201,162,39,0.2); }
+  .etappe.krone-zeile:not(.ok) { opacity: 0.6; }
+
+  .result-screen p.stern-zeile { color: var(--gold-hell); }
+  .result-screen p.krone-zeile { font-size: 1.1rem; color: var(--gold); }
+  .krone-toast .krone-gross { font-size: 2.6rem; line-height: 1.2; }
   .group.closed .chev { transform: rotate(-90deg); }
   .group.closed .deck-list { display: none; }
 
@@ -1130,7 +1163,11 @@ function leereDaten() {
            // Zuletzt geübte Liste pro Sprache, für «Weiter üben»
            letzteJe: {},
            // Beantwortete Fragen pro Tag (alle Sprachen zusammen), fürs Wochenziel
-           tage: {} };
+           tage: {},
+           // Was mit einem Wort schon einmal richtig war: erfolge[deckId][schluessel] = Bits (siehe ERFOLG)
+           erfolge: {},
+           // Verdiente Etappen pro Unité: sterne[gruppenId] = ['entdeckt', …] – einmal verdient, bleibt verdient
+           sterne: {} };
 }
 
 function ladeDaten() {
@@ -1443,6 +1480,114 @@ function heuteModus(deck, stand, eintrag) {
   if (s < STUFE_NUR_ABRUFEN) return 'f-d';
   if (eintrag && eintrag.schreiben) return s === STUFE_NUR_ABRUFEN ? 'ordnen' : 'schreiben';
   return 'd-f';
+}
+
+// ════════════════════════════════════════════════════════════
+//  STERNE PRO UNITÉ
+//  Fünf Etappen, je ein Stern; alle geschafft = Krone. Gezählt wird
+//  jede richtige Antwort, egal wo (Liste, Heute fällig, Fehler) –
+//  anders als beim Lernstand ohne Wartezeit. Unités ohne fett
+//  gedruckte Wörter haben nur die ersten drei Etappen.
+// ════════════════════════════════════════════════════════════
+const ERFOLG = { erkennen: 1, abrufen: 2, ordnen: 4, schreiben: 8 };
+const ETAPPEN = [
+  { id: 'entdeckt',    name: 'Entdeckt',    was: 'jede Liste einmal fertig gespielt' },
+  { id: 'erkannt',     name: 'Erkannt',     was: 'jedes Wort einmal richtig {f}→🇩🇪', bit: 1 },
+  { id: 'gewusst',     name: 'Gewusst',     was: 'jedes Wort einmal richtig 🇩🇪→{f}', bit: 2 },
+  { id: 'gelegt',      name: 'Gelegt',      was: 'jedes fette Wort einmal richtig geordnet', bit: 4, fett: true },
+  { id: 'geschrieben', name: 'Geschrieben', was: 'jedes fette Wort einmal richtig geschrieben', bit: 8, fett: true },
+];
+
+function gruppenId(g) { return g.id || g.titel; }
+
+// Unités mit Wortlisten bekommen Sterne (nicht «Übergreifend», nicht «Wiederholen»)
+function hatSterne(g) {
+  return !!g.sprache && g.decks.some(d => d.typ === 'vokabeln');
+}
+
+// Stand aller Etappen einer Unité → [{ ...etappe, fehlt, verdient }]
+function etappenVon(g) {
+  const vok = g.decks.filter(d => d.typ === 'vokabeln');
+  const alle = vok.flatMap(d => d.woerter.map(w => ({ d, w })));
+  const fett = alle.filter(x => x.w.schreiben);
+  const bits = x => ((daten.erfolge[x.d.id] || {})[schluessel(x.w)]) || 0;
+  const verdient = new Set(daten.sterne[gruppenId(g)] || []);
+  return ETAPPEN.filter(e => !e.fett || fett.length).map(e => {
+    let fehlt;
+    if (e.id === 'entdeckt') fehlt = g.decks.filter(d => !(daten.decks[d.id] && daten.decks[d.id].geuebt)).map(d => d.titel);
+    else fehlt = (e.fett ? fett : alle).filter(x => !(bits(x) & e.bit));
+    return Object.assign({}, e, { fehlt, verdient: verdient.has(e.id) || fehlt.length === 0 });
+  });
+}
+
+// Neu geschaffte Etappen speichern; gibt sie zurück [{ g, etappe, krone }]
+function aktualisiereSterne() {
+  const neu = [];
+  QUIZ_DATEN.gruppen.filter(hatSterne).forEach(g => {
+    const id = gruppenId(g);
+    const vorher = new Set(daten.sterne[id] || []);
+    const etappen = etappenVon(g);
+    const jetzt = etappen.filter(e => e.verdient).map(e => e.id);
+    const dazu = jetzt.filter(e => !vorher.has(e));
+    if (!dazu.length) return;
+    daten.sterne[id] = [...new Set([...vorher, ...jetzt])];
+    const krone = etappen.every(e => e.verdient);
+    dazu.forEach(e => neu.push({ g, etappe: ETAPPEN.find(x => x.id === e), krone }));
+  });
+  return neu;
+}
+
+// Richtige Antwort vermerken (nur Wortlisten)
+function merkeErfolg(k) {
+  const bit = ERFOLG[k.richtung];
+  const deck = alleDecks[k.deckId];
+  if (!bit || !deck || deck.typ !== 'vokabeln') return;
+  const e = daten.erfolge[k.deckId] || (daten.erfolge[k.deckId] = {});
+  e[k.schluessel] = (e[k.schluessel] || 0) | bit;
+}
+
+function sternKopf(g, gi) {
+  if (!hatSterne(g)) return '';
+  const et = etappenVon(g);
+  const n = et.filter(e => e.verdient).length;
+  const titel = et.length === n ? 'Krone – alle Etappen geschafft' : `${n} von ${et.length} Sternen`;
+  return `<span class="sterne ${n === et.length ? 'krone' : ''}" role="button" tabindex="0"
+      title="${titel}" aria-label="${titel}" onclick="event.stopPropagation(); zeigeEtappen(${gi})">${n === et.length
+        ? '👑'
+        : et.map(e => `<i class="${e.verdient ? 'voll' : ''}">${e.verdient ? '★' : '☆'}</i>`).join('')}</span>`;
+}
+
+// Auf- und zuklappen ohne das Menü neu zu zeichnen – sonst sprängen
+// die von Hand auf- oder zugeklappten Gruppen in den Startzustand zurück
+const offeneEtappen = new Set();
+function zeigeEtappen(gi) {
+  const el = document.getElementById('etappen' + gi);
+  if (!el) return;
+  el.hidden = !el.hidden;
+  if (el.hidden) offeneEtappen.delete(gi); else offeneEtappen.add(gi);
+}
+
+function etappenListe(g, gi) {
+  if (!hatSterne(g)) return '';
+  const f = g.sprache === 'en' ? '🇬🇧' : '🇫🇷';
+  const et = etappenVon(g);
+  const krone = et.every(e => e.verdient);
+  return `
+    <div class="etappen" id="etappen${gi}" ${offeneEtappen.has(gi) ? '' : 'hidden'}>
+      ${et.map(e => {
+        const rest = e.id === 'entdeckt'
+          ? `noch ${e.fehlt.length === 1 ? '1 Liste' : e.fehlt.length + ' Listen'}: ${e.fehlt.join(', ')}`
+          : `noch ${wortZahl(e.fehlt.length)}`;
+        return `<div class="etappe ${e.verdient ? 'ok' : ''}">
+          <span class="e-stern">${e.verdient ? '★' : '☆'}</span>
+          <span><b>${e.name}</b> – ${e.was.replace('{f}', f)}${e.verdient ? '' : `<em>${rest}</em>`}</span>
+        </div>`;
+      }).join('')}
+      <div class="etappe krone-zeile ${krone ? 'ok' : ''}">
+        <span class="e-stern">👑</span>
+        <span>${krone ? '<b>Krone verdient!</b>' : 'Alle Sterne = Krone'}</span>
+      </div>
+    </div>`;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1928,26 +2073,21 @@ function vollerTitel(deck) {
 }
 function zeigeMenu() {
   if (window.Konto) Konto.renderLeiste();
-  // Rang nur bei der ersten Gruppe einer Sprache zeigen – Französisch
-  // steht in mehreren Gruppen, viermal derselbe Rang wäre nur Lärm.
-  const rangGezeigt = new Set();
   const sp = aktiveSprache();
   zeigeWoche();
   zeigeSprachwahl();
   document.getElementById('gruppen').innerHTML = QUIZ_DATEN.gruppen.map((g, gi) => {
     // Nur die gewählte Sprache; Gruppen ohne Sprache (Wiederholen) immer
     if (g.sprache && g.sprache !== sp) return '';
-    const zeigeRang = g.sprache && !rangGezeigt.has(g.sprache);
-    if (zeigeRang) rangGezeigt.add(g.sprache);
-    const n = zeigeRang ? niveauVon(g.sprache) : null;
     return `
     <div class="group ${g.offen ? '' : 'closed'}" id="g${gi}">
       <button class="group-head" onclick="klappe(${gi})">
         <span class="dot" style="background:${g.farbe}"></span>
         <span class="title">${SPRACHEN.length > 1 && g.sprache ? g.titel.split(' · ').slice(1).join(' · ') || g.titel : g.titel}</span>
-        ${n ? `<span class="niveau">🪄 ${n.idx + 1}. Rang</span>` : ''}
+        ${sternKopf(g, gi)}
         <span class="chev">▼</span>
       </button>
+      ${etappenListe(g, gi)}
       <div class="deck-list">
         ${g.decks.map(d => {
           const leer = anzahlWoerter(d) === 0;
@@ -2016,7 +2156,7 @@ function zumMenu() {
 // ════════════════════════════════════════════════════════════
 //  QUIZ
 // ════════════════════════════════════════════════════════════
-const aktuell = { deck: null, modus: null, index: 0, score: 0, beantwortet: false, karten: [], aufstiege: 0, tagNeu: false };
+const aktuell = { deck: null, modus: null, index: 0, score: 0, beantwortet: false, karten: [], aufstiege: 0, tagNeu: false, neueSterne: [] };
 let serie = 0;
 
 function oeffneDeck(id, modus) {
@@ -2052,6 +2192,7 @@ function oeffneDeck(id, modus) {
     aktuell.index = l.index;
     aktuell.score = l.score;
     aktuell.aufstiege = l.aufstiege || 0;
+    aktuell.neueSterne = l.neueSterne || [];
     aktuell.tagNeu = !!l.tagNeu;
     aktuell.beantwortet = false;
     aktuell.karten = l.karten;
@@ -2083,6 +2224,7 @@ function merkeLaufend(index) {
     index,
     score: aktuell.score,
     aufstiege: aktuell.aufstiege,
+    neueSterne: aktuell.neueSterne,
     tagNeu: aktuell.tagNeu,
     sprache: aktuell.deck.sprache || aktiveSprache(),
     karten: aktuell.karten,
@@ -2111,6 +2253,7 @@ function starteRunde() {
   aktuell.index = 0;
   aktuell.score = 0;
   aktuell.aufstiege = 0;
+  aktuell.neueSterne = [];
   aktuell.tagNeu = false;
   aktuell.beantwortet = false;
   aktuell.karten = baueSession(aktuell.deck, aktuell.modus);
@@ -2272,6 +2415,12 @@ function bewerte(k, ergebnis, anker) {
   }
   // Fürs Wochenziel: jede beantwortete Frage zählt, egal ob richtig
   if (zaehleAntwort()) aktuell.tagNeu = true;
+
+  // Für die Sterne: was war mit diesem Wort schon einmal richtig?
+  if (richtig) {
+    merkeErfolg(k);
+    aktuell.neueSterne.push(...aktualisiereSterne().map(x => ({ gruppe: gruppenId(x.g), etappe: x.etappe.id, krone: x.krone })));
+  }
 
   // Lernstand des Wortes nachführen und zeigen
   const lern = lerne(k, ergebnis === 'akzent' ? 'akzent' : richtig);
@@ -2537,7 +2686,22 @@ function zeigeErgebnis() {
   stand.zuletzt = Date.now();
   daten.decks[aktuell.deck.id] = stand;
   daten.laufend = null;   // Runde ist zu Ende
+  // «Entdeckt» zählt fertig gespielte Listen – also erst jetzt prüfen
+  aktuell.neueSterne.push(...aktualisiereSterne().map(x => ({ gruppe: gruppenId(x.g), etappe: x.etappe.id, krone: x.krone })));
   speichere();
+
+  // Neue Sterne dieser Runde, pro Unité zusammengefasst
+  const sternZeilen = [];
+  const kronen = [];
+  [...new Set(aktuell.neueSterne.map(x => x.gruppe))].forEach(gid => {
+    const g = QUIZ_DATEN.gruppen.find(x => gruppenId(x) === gid);
+    if (!g) return;
+    const name = g.titel.split(' · ').slice(1).join(' · ') || g.titel;
+    const eigene = aktuell.neueSterne.filter(x => x.gruppe === gid);
+    const namen = eigene.map(x => (ETAPPEN.find(e => e.id === x.etappe) || {}).name).filter(Boolean);
+    sternZeilen.push(`⭐ ${namen.length === 1 ? 'Neuer Stern' : namen.length + ' neue Sterne'} in ${name}: ${namen.join(', ')}`);
+    if (eigene.some(x => x.krone)) kronen.push(name);
+  });
 
   const auf = aktuell.aufstiege;
   const istHeute = aktuell.deck.typ === 'heute';
@@ -2563,6 +2727,8 @@ function zeigeErgebnis() {
       <div class="result-score">${aktuell.score} / ${gesamt}</div>
       ${auf ? `<p class="aufstieg">⬆ ${auf === 1 ? '1 Wort ist' : `${auf} Wörter sind`} eine Stufe aufgestiegen</p>` : ''}
       ${tagZeile ? `<p class="aufstieg">${tagZeile}</p>` : ''}
+      ${sternZeilen.map(z => `<p class="aufstieg stern-zeile">${z}</p>`).join('')}
+      ${kronen.map(n => `<p class="aufstieg krone-zeile">👑 Krone für ${n}!</p>`).join('')}
       ${istHeute ? `<p class="aufstieg">${rest ? `🔮 Noch ${wortZahl(rest)} für heute` : '🌙 Für heute ist alles geübt'}</p>` : ''}
       <p>${pct}% richtig beantwortet</p>
       <div class="result-btns">
@@ -2570,6 +2736,16 @@ function zeigeErgebnis() {
         <button class="menu-btn" onclick="zumMenu()">← Zur Übersicht</button>
       </div>
     </div>`;
+  if (kronen.length) setTimeout(() => zeigeKrone(kronen[0]), 600);
+}
+
+function zeigeKrone(name) {
+  const el = document.createElement('div');
+  el.className = 'level-up-toast krone-toast';
+  el.innerHTML = `<span class="krone-gross">👑</span><br>Krone für ${name}`;
+  document.body.appendChild(el);
+  konfetti();
+  setTimeout(() => el.remove(), 3200);
 }
 
 // ════════════════════════════════════════════════════════════
