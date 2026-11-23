@@ -404,12 +404,14 @@ const U2_GRUEN = [
 //  AUFBAU DES MENÜS
 //  Eine Gruppe pro Unité. Neue Unité = einen Block kopieren und
 //  anpassen; offen: true bestimmt, was beim Start aufgeklappt ist.
+//  id: fest und eindeutig – daran hängen die verdienten Sterne.
 // ════════════════════════════════════════════════════════════
 const FR_FARBE = '#7b1f2b', FR_HELL = '#f0d9d2';
 
 const QUIZ_DATEN = {
   gruppen: [
     {
+      id: 'fr5-u1',
       titel: 'Französisch · Unité 1',
       sprache: 'fr', farbe: FR_FARBE, hell: FR_HELL, offen: false,
       decks: [
@@ -422,6 +424,7 @@ const QUIZ_DATEN = {
       ],
     },
     {
+      id: 'fr5-u2',
       titel: 'Französisch · Unité 2',
       sprache: 'fr', farbe: FR_FARBE, hell: FR_HELL, offen: true,
       decks: [
@@ -434,6 +437,7 @@ const QUIZ_DATEN = {
       ],
     },
     {
+      id: 'fr5-allg',
       titel: 'Französisch · Übergreifend',
       sprache: 'fr', farbe: FR_FARBE, hell: FR_HELL, offen: false,
       decks: [
@@ -444,6 +448,7 @@ const QUIZ_DATEN = {
       ],
     },
     {
+      id: 'fr4',
       titel: 'Französisch · 4. Klasse',
       sprache: 'fr', farbe: '#1f5136', hell: '#d9e8dd', offen: false,
       decks: [
@@ -456,6 +461,7 @@ const QUIZ_DATEN = {
       ],
     },
     {
+      id: 'en5-u1',
       titel: 'Englisch · Unit 1',
       sprache: 'en', farbe: '#1d3a6e', hell: '#d8e0ee', offen: true,
       decks: [
@@ -468,6 +474,7 @@ const QUIZ_DATEN = {
       ],
     },
     {
+      id: 'wiederholen',
       titel: 'Wiederholen',
       sprache: null, farbe: '#6b4a17', hell: '#eee0c4', offen: true,
       decks: [
