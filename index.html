@@ -377,7 +377,7 @@
     font-weight: 700;
     color: #7a5c1e;
     border-radius: 50%;
-    /* Lernstand: Gold = sitzt (--p), hell = unterwegs (bis --q). Ohne Lernstand ist --q = --p. */
+    /* Gold bis --p; der helle Bogen bis --q wird zurzeit nicht genutzt (--q = --p) */
     background: conic-gradient(
       #b8901c calc(var(--p, 0) * 1%),
       rgba(184,144,28,0.4) 0 calc(var(--q, 0) * 1%),
@@ -556,8 +556,9 @@
     margin-bottom: 28px;
   }
   .card-word {
-    font-family: 'Cinzel', Georgia, serif;
-    font-size: 1.85rem;
+    /* Nicht Cinzel: die kennt nur Grossbuchstaben, hier zählt Gross-/Kleinschreibung */
+    font-family: 'EB Garamond', Georgia, serif;
+    font-size: 2.1rem;
     font-weight: 700;
     line-height: 1.25;
     color: var(--tinte);
@@ -1458,16 +1459,23 @@ function lerne(k, richtig) {
   return { vorher, nachher: w.s, neu: !alt, gebremst };
 }
 
-// Zählt für ein Deck: wie viele Wörter sitzen, wie viele sind unterwegs
+// Zählt für ein Deck: wie viele Wörter sitzen, wie viele sind unterwegs –
+// und den Fortschritt in Prozent: jede Stufe bis «sitzt» zählt gleich viel
+// (Stufe 1 = 25 %, Stufe 4 und höher = 100 % pro Wort)
 function lernstandVon(deck) {
   const stand = daten.woerter[deck.id] || {};
-  let sitzen = 0, unterwegs = 0;
+  let sitzen = 0, unterwegs = 0, stufen = 0;
   deck.woerter.forEach(w => {
     const e = stand[schluessel(w)];
     if (!e) return;
     if (e.s >= STUFE_SITZT) sitzen++; else unterwegs++;
+    stufen += Math.min(e.s, STUFE_SITZT);
   });
-  return { sitzen, unterwegs, gesamt: deck.woerter.length };
+  const gesamt = deck.woerter.length;
+  let fortschritt = gesamt ? Math.round(stufen / (gesamt * STUFE_SITZT) * 100) : 0;
+  if (stufen > 0) fortschritt = Math.max(1, fortschritt);             // Geübtes zeigt nie 0 %
+  if (fortschritt === 100 && sitzen < gesamt) fortschritt = 99;       // 100 % erst, wenn alle sitzen
+  return { sitzen, unterwegs, gesamt, fortschritt };
 }
 
 // Fällige Wörter einer Sprache bis und mit Tag `bis` → [{ deck, eintrag, stand }]
@@ -2073,17 +2081,16 @@ function untertitel(deck) {
 // Im Menü genügt der kurze Deck-Name, die Gruppenzeile steht ja darüber.
 // In der Kopfzeile und auf der Weiter-üben-Karte fehlt der Zusammenhang –
 // dort kommt die Unité davor, sonst wäre "un / une" nicht eindeutig.
-// Der Ring rechts zeigt bei Wortlisten den Lernstand: goldener Bogen und Zahl
-// = Wörter, die sitzen; heller Bogen = unterwegs. Listen ohne Lernstand
-// (Zahlen, Meine Fehler) zeigen wie bisher die Quote der letzten Runde.
+// Der Ring rechts zeigt bei Wortlisten den Fortschritt in Prozent (jede Stufe
+// zählt, siehe lernstandVon). Listen ohne Lernstand (Zahlen, Meine Fehler,
+// Prüfung) zeigen wie bisher die Quote der letzten Runde.
 function ringVon(deck) {
   const stand = daten.decks[deck.id];
   if (hatLernstand(deck)) {
     const l = lernstandVon(deck);
     const begonnen = l.sitzen + l.unterwegs > 0;
-    const pct = n => l.gesamt ? (n / l.gesamt * 100).toFixed(1) : 0;
-    return { p: pct(l.sitzen), q: pct(l.sitzen + l.unterwegs), text: begonnen ? String(l.sitzen) : '·',
-             zahl: begonnen, titel: `${l.sitzen} von ${l.gesamt} sitzen, ${l.unterwegs} unterwegs` };
+    return { p: l.fortschritt, q: l.fortschritt, text: begonnen ? l.fortschritt + '%' : '·',
+             zahl: false, titel: `Fortschritt ${l.fortschritt} %: ${l.sitzen} von ${l.gesamt} sitzen, ${l.unterwegs} unterwegs` };
   }
   const quote = stand ? stand.letzteQuote : 0;
   return { p: quote, q: quote, text: stand ? quote + '%' : '·', zahl: false, titel: stand ? 'Letzte Runde' : '' };
