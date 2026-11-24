@@ -401,6 +401,15 @@
     color: #7a6748;
   }
 
+  /* Version ganz unten, kaum sichtbar */
+  .version {
+    margin-top: 10px;
+    text-align: center;
+    font-size: 0.66rem;
+    color: #5e4f37;
+    letter-spacing: 0.3px;
+  }
+
   /* ── SPIELER-LEISTE ──────────────────────── */
   .player-bar {
     display: flex;
@@ -1442,6 +1451,7 @@
     <button class="resume" id="resume-btn" style="display:none"></button>
     <div id="gruppen"></div>
     <div class="hinweis" id="hinweis"></div>
+    <div class="version" id="version"></div>
   </div>
 
   <!-- ══ QUIZ ══ -->
@@ -1472,6 +1482,24 @@
 <script src="konto.js"></script>
 <script src="vokabeln.js"></script>
 <script>
+// ════════════════════════════════════════════════════════════
+//  VERSION
+//  Bei jeder Änderung erhöhen (Nummer des Pull Requests). Dazu zeigt die
+//  App den Stand der geladenen Seite: GitHub Pages liefert ihn als
+//  «Last-Modified» mit, er ändert sich also bei jeder Veröffentlichung.
+// ════════════════════════════════════════════════════════════
+const APP_VERSION = 25;
+
+function versionText() {
+  const stand = new Date(document.lastModified);
+  // Ohne Last-Modified meldet der Browser die aktuelle Zeit – dann nur die Nummer
+  const bekannt = !isNaN(stand) && Math.abs(Date.now() - stand) > 60 * 1000;
+  const zwei = n => String(n).padStart(2, '0');
+  return `Version ${APP_VERSION}` + (bekannt
+    ? ` · ${zwei(stand.getDate())}.${zwei(stand.getMonth() + 1)}.${stand.getFullYear()} ${zwei(stand.getHours())}:${zwei(stand.getMinutes())}`
+    : '');
+}
+
 // ════════════════════════════════════════════════════════════
 //  SPEICHER
 //  Alles unter einem Schlüssel. localStorage kann gesperrt sein
@@ -2545,6 +2573,7 @@ function zeigeMenu() {
     && etappenVon(g).every(e => e.verdient)
     && !wartendeSterne.some(x => x.gruppe === gruppenId(g) && x.krone));
   document.getElementById('konto-icon').classList.toggle('gekroent', gekroent);
+  document.getElementById('version').textContent = versionText();
   starteSternFluege();
 }
 
