@@ -950,9 +950,10 @@
     color: var(--gold-hell); text-shadow: 0 0 18px rgba(201,162,39,0.6);
   }
   .z-was { max-width: 300px; margin: 6px auto 0; font-style: italic; font-size: 1.05rem; line-height: 1.35; color: var(--pergament); }
-  .z-text, .z-weiter { position: relative; transition: opacity 0.4s ease, transform 0.4s ease; }
+  .z-buehne { z-index: 1; }
+  .z-text, .z-weiter { position: relative; z-index: 2; transition: opacity 0.4s ease, transform 0.4s ease; }
   .z-weiter { margin-top: 22px; }
-  .zauber:not(.offen) .z-text, .zauber:not(.offen) .z-weiter { opacity: 0; transform: translateY(10px); pointer-events: none; }
+  .zauber:not(.offen) .z-text, .zauber:not(.bereit) .z-weiter { opacity: 0; transform: translateY(10px); pointer-events: none; }
 
   /* Entdeckt: eine Lupe gleitet über eine alte Karte */
   .z-karte {
@@ -1108,26 +1109,97 @@
   .zauber-geschrieben.offen .z-tinte { fill-opacity: 1; }
   .z-feder { position: absolute; left: 0; top: 0; font-size: 46px; line-height: 1; opacity: 0; pointer-events: none; }
 
-  /* Krone: sie schwebt herab, dahinter drehen sich Lichtstrahlen */
+  /* Krone: liegt unter Goldfolie und wird freigerubbelt; danach Lichtstrahlen */
   .z-strahlen {
     position: absolute; left: 50%; top: 50%; width: 380px; height: 380px; margin: -190px 0 0 -190px;
     border-radius: 50%;
     background: repeating-conic-gradient(rgba(255,230,150,0.22) 0 9deg, transparent 9deg 22deg);
     -webkit-mask-image: radial-gradient(circle, #000 20%, transparent 70%);
             mask-image: radial-gradient(circle, #000 20%, transparent 70%);
-    animation: zEin 0.8s ease 0.8s both, zDrehen 14s linear infinite;
+    opacity: 0;
   }
+  .zauber-krone.offen .z-strahlen { opacity: 1; animation: zEin 0.8s ease both, zDrehen 14s linear infinite; }
   @keyframes zDrehen { to { transform: rotate(360deg); } }
   .z-krone {
     position: absolute; left: 50%; top: 50%; font-size: 110px; line-height: 1;
-    transform: translate(-50%, -50%) translateY(0) rotate(0deg);
+    transform: translate(-50%, -50%) rotate(0deg) scale(1);
     filter: drop-shadow(0 0 22px rgba(233,207,122,0.8));
-    animation: zKroneHerab 1.1s cubic-bezier(.3,1.3,.5,1) both;
   }
-  @keyframes zKroneHerab {
-    0%  { opacity: 0; transform: translate(-50%, -50%) translateY(-260px) rotate(-25deg); }
-    15% { opacity: 1; }
-    70% { transform: translate(-50%, -50%) translateY(8px) rotate(6deg); }
+  .zauber-krone.offen .z-krone { animation: zKroneAuf 0.9s cubic-bezier(.2,1.6,.4,1) both; }
+  @keyframes zKroneAuf {
+    0%  { transform: translate(-50%, -50%) rotate(0deg) scale(0.7); }
+    45% { transform: translate(-50%, -50%) rotate(-8deg) scale(1.3); }
+  }
+  .z-folie {
+    position: absolute; left: 25px; top: 25px; width: 210px; height: 210px;
+    border-radius: 18px;
+    touch-action: none;
+    cursor: pointer;
+    box-shadow: 0 6px 22px rgba(0,0,0,0.6), 0 0 0 2px rgba(255,236,170,0.5);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .z-folie.weg { opacity: 0; transform: scale(1.15); pointer-events: none; }
+  .zauber-krone .z-tipp { top: 240px; animation: zEin 0.5s ease 0.6s both; }
+  .zauber-krone.offen .z-tipp { opacity: 0; }
+  .z-aufdecken {
+    position: absolute; left: 50%; top: 268px; z-index: 2;
+    transform: translateX(-50%);
+    min-height: 36px; padding: 4px 12px;
+    border: none; background: none;
+    color: #9a8660; font-size: 0.85rem; font-style: italic;
+    text-decoration: underline; text-underline-offset: 3px;
+    animation: zSpaet 0.5s ease 6s both;
+  }
+  @keyframes zSpaet { from { opacity: 0; visibility: hidden; } to { opacity: 1; visibility: visible; } }
+  .zauber-krone.offen .z-aufdecken { display: none; }
+
+  /* Seltene Überraschung: Band oben, dazu Drache, Regenbogen oder Sternschnuppen */
+  .zauber:not(.u-los) .u-band, .zauber:not(.u-los) .u-buehne { display: none; }
+  .u-band {
+    position: absolute; left: 50%; top: calc(18px + env(safe-area-inset-top)); z-index: 3;
+    padding: 8px 18px;
+    border-radius: 30px;
+    background: linear-gradient(90deg, #7d5aa6, #c9a227);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 0 18px rgba(201,162,39,0.5);
+    color: #fff8e6; font-family: 'Cinzel', Georgia, serif; font-weight: 700; font-size: 0.95rem;
+    white-space: nowrap;
+    transform: translateX(-50%) rotate(-3deg) scale(1);
+    animation: uBand 0.7s cubic-bezier(.2,1.6,.4,1) both;
+  }
+  @keyframes uBand { from { opacity: 0; transform: translateX(-50%) rotate(-3deg) scale(0.2); } }
+  .u-buehne { position: absolute; inset: 0; pointer-events: none; }
+  .u-drache { position: absolute; left: 100%; top: 16%; z-index: 5; font-size: 74px; line-height: 1; opacity: 0; animation: uDrache 3s linear both; }
+  .u-drache span { display: inline-block; animation: uSchweben 0.45s ease-in-out infinite alternate; }
+  @keyframes uDrache { 0% { opacity: 1; transform: translateX(20px); } 99% { opacity: 1; } 100% { opacity: 0; transform: translateX(calc(-100vw - 140px)); } }
+  @keyframes uSchweben { to { transform: translateY(14px) rotate(4deg); } }
+  .u-funke { position: fixed; z-index: 996; color: #ffe9a8; font-size: 15px; line-height: 1; pointer-events: none; text-shadow: 0 0 8px #e9cf7a; animation: uFunke 1.1s ease-out forwards; }
+  @keyframes uFunke { to { opacity: 0; transform: translate(var(--dx), var(--dy)) scale(0.3) rotate(160deg); } }
+  .u-bogen {
+    position: absolute; left: 50%; top: calc(40% - 205px); z-index: 0;
+    width: 360px; height: 180px; margin-left: -180px;
+    border-radius: 180px 180px 0 0;
+    background: radial-gradient(circle at 50% 100%, transparent 54%,
+      #ff7b7b 54% 59%, #ffb35c 59% 64%, #ffe36d 64% 69%, #7fd38f 69% 74%, #67b3ff 74% 79%, #b58cff 79% 84%, transparent 84%);
+    filter: drop-shadow(0 0 14px rgba(255,236,170,0.55));
+    opacity: 0.9;
+    animation: uBogen 1.3s ease-out both;
+  }
+  @keyframes uBogen { from { clip-path: inset(0 100% 0 0); opacity: 0.4; } to { clip-path: inset(0 0 0 0); } }
+  .u-schnuppe {
+    position: absolute; z-index: 0;
+    left: var(--x); top: var(--y);
+    width: 150px; height: 2px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, #fff8e0, rgba(255,236,170,0));
+    box-shadow: 0 0 8px #fff3c4;
+    opacity: 0;
+    transform: rotate(-32deg);
+    animation: uSchnuppe 1.1s ease-in var(--d) both;
+  }
+  @keyframes uSchnuppe {
+    0%   { opacity: 0; transform: rotate(-32deg) translateX(240px); }
+    20%  { opacity: 1; }
+    100% { opacity: 0; transform: rotate(-32deg) translateX(-160px); }
   }
 
   /* Zurück in der Übersicht: der Stern fliegt an seinen Platz */
@@ -1171,6 +1243,7 @@
   #konto-icon.kroenung .konto-icon { animation: zLanden 0.8s cubic-bezier(.2,1.6,.4,1) both; }
 
   @media (prefers-reduced-motion: reduce) {
+    .u-drache, .u-schnuppe, .u-funke { display: none; }
     .zauber, .zauber *, .zauber *::after, .flug-stern, .sterne i.landet, .sterne.kroenung, #konto-icon.kroenung .konto-icon {
       animation: none !important; transition: none !important;
     }
@@ -1488,7 +1561,7 @@
 //  App den Stand der geladenen Seite: GitHub Pages liefert ihn als
 //  «Last-Modified» mit, er ändert sich also bei jeder Veröffentlichung.
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = 25;
+const APP_VERSION = 26;
 
 function versionText() {
   const stand = new Date(document.lastModified);
@@ -1532,7 +1605,9 @@ function leereDaten() {
            sterne: {},
            // Angefangene Prüfung – eigener Platz, damit sie nicht verloren geht,
            // wenn zwischendurch eine Liste geübt wird (sonst wie «laufend»)
-           pruefungLauf: null };
+           pruefungLauf: null,
+           // Sterne seit der letzten seltenen Überraschung (spätestens beim 6. kommt eine)
+           ohneUeberraschung: 0 };
 }
 
 function ladeDaten() {
@@ -3490,10 +3565,137 @@ const ZAUBER = {
     },
   },
   krone: {
-    zeit: 1050,
-    html: () => `<div class="z-strahlen"></div><div class="z-krone" aria-hidden="true">👑</div>`,
+    rubbeln: true,
+    html: () => `
+      <div class="z-strahlen"></div>
+      <div class="z-krone" aria-hidden="true">👑</div>
+      <canvas class="z-folie" role="img" aria-label="Goldfolie – mit dem Finger freirubbeln"></canvas>
+      <div class="z-tipp">Rubble mit dem Finger frei</div>
+      <button class="z-aufdecken">Einfach aufdecken</button>`,
   },
 };
+
+// Rubbellos: Goldfolie auf einem Canvas; was der Finger berührt, wird durchsichtig.
+// Ist gut die Hälfte frei, verschwindet der Rest und die Krone erscheint.
+const RUBBEL_GROESSE = 210, RUBBEL_FREI = 0.5;
+function starteRubbeln(el, enthuelle) {
+  const c = el.querySelector('.z-folie');
+  const g = RUBBEL_GROESSE;
+  const dpr = Math.min(3, window.devicePixelRatio || 1);
+  c.width = c.height = Math.round(g * dpr);
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  ctx.scale(dpr, dpr);
+  // Goldfolie mit feinem Schraffur-Muster und Glitzerpunkten
+  const verlauf = ctx.createLinearGradient(0, 0, g, g);
+  [[0, '#a8831a'], [0.3, '#f3dc9b'], [0.5, '#c9a227'], [0.75, '#f0d98a'], [1, '#94720f']].forEach(([o, f]) => verlauf.addColorStop(o, f));
+  ctx.fillStyle = verlauf;
+  ctx.fillRect(0, 0, g, g);
+  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
+  ctx.lineWidth = 1;
+  for (let x = -g; x < g; x += 9) { ctx.beginPath(); ctx.moveTo(x, g); ctx.lineTo(x + g, 0); ctx.stroke(); }
+  for (let i = 0; i < 50; i++) {
+    ctx.fillStyle = `rgba(255,255,235,${(0.3 + Math.random() * 0.6).toFixed(2)})`;
+    ctx.fillRect(Math.random() * g, Math.random() * g, 1.6, 1.6);
+  }
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(92,62,8,0.5)';
+  ctx.font = "700 96px 'Cinzel', Georgia, serif";
+  ctx.fillText('?', g / 2, g / 2 - 8);
+  ctx.font = "700 15px 'Cinzel', Georgia, serif";
+  ctx.fillText('✦ RUBBELN ✦', g / 2, g - 28);
+
+  // Ab jetzt radiert jeder Strich die Folie weg
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.lineCap = ctx.lineJoin = 'round';
+  ctx.lineWidth = 44;
+  ctx.strokeStyle = ctx.fillStyle = '#000';   // deckend, sonst radiert ein Strich nur teilweise
+  let aktiv = false, letzter = null, zuege = 0, fertig = false;
+  const punkt = e => {
+    const r = c.getBoundingClientRect();
+    return { x: (e.clientX - r.left) * g / r.width, y: (e.clientY - r.top) * g / r.height };
+  };
+  const anteilFrei = () => {
+    const d = ctx.getImageData(0, 0, c.width, c.height).data;
+    let frei = 0, n = 0;
+    for (let i = 3; i < d.length; i += 4 * 29) { n++; if (d[i] < 40) frei++; }
+    return frei / n;
+  };
+  const aufdecken = () => {
+    if (fertig) return;
+    fertig = true;
+    c.classList.add('weg');
+    enthuelle();
+  };
+  const rubble = p => {
+    ctx.beginPath();
+    if (letzter) { ctx.moveTo(letzter.x, letzter.y); ctx.lineTo(p.x, p.y); ctx.stroke(); }
+    else { ctx.arc(p.x, p.y, 22, 0, Math.PI * 2); ctx.fill(); }
+    letzter = p;
+    if (++zuege % 3 === 0) tonRubbeln();
+    if (zuege % 8 === 0 && anteilFrei() >= RUBBEL_FREI) aufdecken();
+  };
+  c.addEventListener('pointerdown', e => {
+    if (fertig) return;
+    e.preventDefault();
+    aktiv = true; letzter = null;
+    try { c.setPointerCapture(e.pointerId); } catch (_) {}
+    rubble(punkt(e));
+  });
+  c.addEventListener('pointermove', e => { if (aktiv && !fertig) rubble(punkt(e)); });
+  const loslassen = () => {
+    aktiv = false; letzter = null;
+    if (!fertig && zuege && anteilFrei() >= RUBBEL_FREI) aufdecken();
+  };
+  c.addEventListener('pointerup', loslassen);
+  c.addEventListener('pointercancel', loslassen);
+  el.querySelector('.z-aufdecken').addEventListener('click', aufdecken);
+}
+function tonRubbeln() { ton(1600 + Math.random() * 1600, 'triangle', 0.035, 0.03); }
+
+// ── Seltene Überraschung ──
+// Bei etwa jedem fünften Stern zufällig, spätestens nach fünf Sternen ohne
+let ueberraschungChance = 0.2;
+const UEBERRASCHUNGEN = ['drache', 'regenbogen', 'sternschnuppen'];
+function waehleUeberraschung() { return UEBERRASCHUNGEN[Math.floor(Math.random() * UEBERRASCHUNGEN.length)]; }
+function kommtUeberraschung() {
+  const ohne = daten.ohneUeberraschung || 0;
+  const ja = ohne >= 5 || Math.random() < ueberraschungChance;
+  daten.ohneUeberraschung = ja ? 0 : ohne + 1;
+  speichere();
+  return ja;
+}
+function ueberraschungHtml(art) {
+  if (art === 'drache') return '<div class="u-drache" aria-hidden="true"><span>🐉</span></div>';
+  if (art === 'regenbogen') return '<div class="u-bogen" aria-hidden="true"></div>';
+  // Sternschnuppen: sieben Stück, versetzt über den Himmel
+  return [[78, 6, 0], [96, 20, 0.25], [60, 2, 0.5], [88, 34, 0.75], [70, 14, 1.0], [104, 8, 1.3], [82, 28, 1.6]]
+    .map(([x, y, d]) => `<div class="u-schnuppe" style="--x:${x}%; --y:${y}%; --d:${d}s"></div>`).join('');
+}
+// Der Drache speit Sternenfunken
+function drachenFunken(el) {
+  const drache = el.querySelector('.u-drache span');
+  if (!drache) return;
+  const zeichen = ['★', '✦', '✧', '·'];
+  const t = setInterval(() => {
+    if (!el.isConnected || !drache.isConnected) { clearInterval(t); return; }
+    const r = drache.getBoundingClientRect();
+    if (r.right < 0) { clearInterval(t); return; }
+    const f = document.createElement('span');
+    f.className = 'u-funke';
+    f.textContent = zeichen[Math.floor(Math.random() * zeichen.length)];
+    f.style.left = (r.left + 4) + 'px';
+    f.style.top = (r.top + r.height * 0.32) + 'px';
+    f.style.setProperty('--dx', (-30 - Math.random() * 50).toFixed(0) + 'px');
+    f.style.setProperty('--dy', (Math.random() * 70 - 20).toFixed(0) + 'px');
+    f.addEventListener('animationend', () => f.remove());
+    document.body.appendChild(f);
+  }, 70);
+}
+function tonUeberraschung() {
+  [784, 880, 1047, 1175, 1319, 1568, 1760, 2093, 2349, 2637].forEach((f, i) => ton(f, 'sine', 0.18, 0.12, i * 0.045));
+  [3136, 2637, 3520, 2794].forEach((f, i) => ton(f, 'triangle', 0.15, 0.04, 0.55 + i * 0.09));
+}
 
 // Am Ende der Runde: die neuen Sterne nacheinander zeigen, danach allenfalls die Krone
 function starteSternZauber() {
@@ -3537,8 +3739,12 @@ function zeigeSternZauber(s, fertig) {
   el.setAttribute('role', 'dialog');
   el.setAttribute('aria-modal', 'true');
   el.setAttribute('aria-label', s.krone ? `Krone für ${unite}` : `Neuer Stern in ${unite}: ${s.etappe.name}`);
+  // Seltene Überraschung (nie bei der Krone – die ist schon Überraschung genug)
+  const ueber = !s.krone && kommtUeberraschung() ? waehleUeberraschung() : null;
+  if (ueber) { el.classList.add('ueberraschung'); el.dataset.ueberraschung = ueber; }
   el.innerHTML = `
     <div class="z-himmel"></div>
+    ${ueber ? `<div class="u-band">✨ Seltene Überraschung!</div><div class="u-buehne">${ueberraschungHtml(ueber)}</div>` : ''}
     <div class="z-buehne">${z.html(s)}</div>
     <div class="z-text">
       <div class="z-titel">${s.krone ? 'Krone für' : 'Neuer Stern'}</div>
@@ -3556,8 +3762,19 @@ function zeigeSternZauber(s, fertig) {
     el.classList.add('offen');
     if (s.krone) { tonFanfare(); konfetti(); }
     else tonSternMelodie(s.nr, s.von);
+    if (!ueber) { el.classList.add('bereit'); return; }
+    // Die Überraschung kommt kurz nach dem Stern; «Weiter» erst, wenn sie vorbei ist
+    setTimeout(() => {
+      if (!el.isConnected) return;
+      el.classList.add('u-los');
+      tonUeberraschung();
+      if (ueber === 'drache' && !schnell) drachenFunken(el);
+    }, schnell ? 0 : 650);
+    setTimeout(() => el.classList.add('bereit'), schnell ? 0 : 3300);
   };
-  if (z.tippen) {
+  if (z.rubbeln) {
+    starteRubbeln(el, enthuelle);
+  } else if (z.tippen) {
     // Erst antippbar, wenn der Brief gelandet ist
     setTimeout(() => el.querySelector('.z-brief').addEventListener('click', enthuelle), schnell ? 0 : 1700);
   } else if (z.lauf && !schnell) {
@@ -3566,7 +3783,7 @@ function zeigeSternZauber(s, fertig) {
     setTimeout(enthuelle, schnell ? 150 : z.zeit);
   }
   el.querySelector('.z-weiter').addEventListener('click', () => {
-    if (!offen || el.classList.contains('zu')) return;
+    if (!el.classList.contains('bereit') || el.classList.contains('zu')) return;
     el.classList.add('zu');
     setTimeout(() => { el.remove(); fertig(); }, schnell ? 0 : 250);
   });
