@@ -1561,7 +1561,7 @@
 //  App den Stand der geladenen Seite: GitHub Pages liefert ihn als
 //  «Last-Modified» mit, er ändert sich also bei jeder Veröffentlichung.
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = 26;
+const APP_VERSION = 27;
 
 function versionText() {
   const stand = new Date(document.lastModified);
@@ -1958,7 +1958,7 @@ function heuteModus(deck, stand, eintrag) {
 // ════════════════════════════════════════════════════════════
 const ERFOLG = { erkennen: 1, abrufen: 2, ordnen: 4, schreiben: 8 };
 const ETAPPEN = [
-  { id: 'entdeckt',    name: 'Entdeckt',    was: 'jede Liste einmal fertig gespielt' },
+  { id: 'entdeckt',    name: 'Entdeckt',    was: 'jede Wortliste einmal fertig gespielt' },
   { id: 'erkannt',     name: 'Erkannt',     was: 'jedes Wort einmal richtig {f}→🇩🇪', bit: 1 },
   { id: 'gewusst',     name: 'Gewusst',     was: 'jedes Wort einmal richtig 🇩🇪→{f}', bit: 2 },
   { id: 'gelegt',      name: 'Gelegt',      was: 'jedes fette Wort einmal richtig geordnet', bit: 4, fett: true },
@@ -1981,7 +1981,8 @@ function etappenVon(g) {
   const verdient = new Set(daten.sterne[gruppenId(g)] || []);
   return ETAPPEN.filter(e => !e.fett || fett.length).map(e => {
     let fehlt;
-    if (e.id === 'entdeckt') fehlt = g.decks.filter(d => !(daten.decks[d.id] && daten.decks[d.id].geuebt)).map(d => d.titel);
+    // Nur die Wortlisten zählen – un/une (Artikel) nicht
+    if (e.id === 'entdeckt') fehlt = vok.filter(d => !(daten.decks[d.id] && daten.decks[d.id].geuebt)).map(d => d.titel);
     else fehlt = (e.fett ? fett : alle).filter(x => !(bits(x) & e.bit));
     return Object.assign({}, e, { fehlt, verdient: verdient.has(e.id) || fehlt.length === 0 });
   });
