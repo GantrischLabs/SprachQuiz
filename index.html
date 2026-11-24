@@ -314,7 +314,6 @@
 
   .result-screen p.stern-zeile { color: var(--gold-hell); }
   .result-screen p.krone-zeile { font-size: 1.1rem; color: var(--gold); }
-  .krone-toast .krone-gross { font-size: 2.6rem; line-height: 1.2; }
   .group.closed .chev { transform: rotate(-90deg); }
   .group.closed .deck-list { display: none; }
 
@@ -898,6 +897,277 @@
   .pf-ok mark { background: #f6d58a; color: #7d1f1f; border-radius: 2px; padding: 0 1px; }
   .result-screen .p-fehler p.p-hinweis { margin: 8px 0 0; font-size: 0.82rem; color: var(--tinte-blass); }
 
+  /* ── STERN-ZAUBER ─────────────────────────── */
+  /* Grundregel: Der Grundzustand ist das Ende jeder Animation. Wer «weniger
+     Bewegung» eingestellt hat, sieht so direkt das fertige Bild. */
+  .zauber {
+    position: fixed; inset: 0;
+    z-index: 990;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 24px 20px calc(24px + env(safe-area-inset-bottom));
+    background: radial-gradient(circle at 50% 40%, rgba(52,33,22,0.985), rgba(12,8,5,0.985) 72%);
+    text-align: center;
+    overflow: hidden;
+    animation: zEin 0.35s ease both;
+  }
+  .zauber.zu { animation: zAus 0.25s ease forwards; }
+  @keyframes zEin { from { opacity: 0; } }
+  @keyframes zAus { to { opacity: 0; } }
+  .z-himmel {
+    position: absolute; inset: 0; pointer-events: none;
+    background-image:
+      radial-gradient(1.6px 1.6px at 12% 18%, #fff3c4 50%, transparent),
+      radial-gradient(1.2px 1.2px at 78% 11%, #fff3c4 50%, transparent),
+      radial-gradient(1.4px 1.4px at 88% 36%, #fff3c4 50%, transparent),
+      radial-gradient(1.1px 1.1px at 22% 52%, #fff3c4 50%, transparent),
+      radial-gradient(1.6px 1.6px at 64% 74%, #fff3c4 50%, transparent),
+      radial-gradient(1.2px 1.2px at 9% 83%, #fff3c4 50%, transparent),
+      radial-gradient(1.3px 1.3px at 44% 7%, #fff3c4 50%, transparent),
+      radial-gradient(1.1px 1.1px at 93% 90%, #fff3c4 50%, transparent);
+    animation: zFunkeln 2.2s ease-in-out infinite alternate;
+  }
+  @keyframes zFunkeln { from { opacity: 0.3; } to { opacity: 0.95; } }
+  .z-buehne { position: relative; width: 260px; height: 260px; flex-shrink: 0; }
+  .z-stern {
+    position: absolute; left: 50%; top: 50%;
+    width: 110px; height: 110px;
+    transform: translate(-50%, -50%);
+    filter: drop-shadow(0 0 18px rgba(233,207,122,0.75));
+  }
+  .z-stern svg, .flug-stern svg { display: block; width: 100%; height: 100%; }
+  .z-titel { font-family: 'Cinzel', Georgia, serif; font-size: 0.9rem; font-weight: 700; color: var(--gold); letter-spacing: 1px; }
+  .z-name {
+    font-family: 'Cinzel', Georgia, serif; font-size: 2rem; font-weight: 700; line-height: 1.2;
+    color: var(--gold-hell); text-shadow: 0 0 18px rgba(201,162,39,0.6);
+  }
+  .z-was { max-width: 300px; margin: 6px auto 0; font-style: italic; font-size: 1.05rem; line-height: 1.35; color: var(--pergament); }
+  .z-text, .z-weiter { position: relative; transition: opacity 0.4s ease, transform 0.4s ease; }
+  .z-weiter { margin-top: 22px; }
+  .zauber:not(.offen) .z-text, .zauber:not(.offen) .z-weiter { opacity: 0; transform: translateY(10px); pointer-events: none; }
+
+  /* Entdeckt: eine Lupe gleitet über eine alte Karte */
+  .z-karte {
+    position: absolute; left: 10px; top: 45px; width: 240px; height: 170px;
+    border-radius: 6px;
+    background: linear-gradient(135deg, #f1e2bd, #d9c08e);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.6), inset 0 0 30px rgba(120,80,30,0.35);
+    transform: rotate(-3deg);
+  }
+  .z-karte svg { width: 100%; height: 100%; display: block; }
+  .z-karte .pfad { fill: none; stroke: #7a4e22; stroke-width: 2.2; stroke-dasharray: 2 7; stroke-linecap: round; }
+  .z-karte .bild { fill: none; stroke: #8a6a40; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; opacity: 0.8; }
+  .z-karte .kreuz { stroke: #9b2a1e; stroke-width: 4; stroke-linecap: round; }
+  .zauber-entdeckt .z-stern { width: 100px; height: 100px; transform: translate(-50%, -50%) scale(1) rotate(0deg); animation: zAuftauchen 0.8s cubic-bezier(.2,1.5,.4,1) 1.5s both; }
+  @keyframes zAuftauchen { from { opacity: 0; transform: translate(-50%, -50%) scale(0) rotate(-120deg); } }
+  .z-lupe { position: absolute; left: 92px; top: 92px; width: 90px; height: 90px; opacity: 0; animation: zLupe 2.1s ease-in-out both; }
+  @keyframes zLupe {
+    0%   { opacity: 0; transform: translate(-110px, 60px) rotate(-10deg); }
+    10%  { opacity: 1; }
+    45%  { transform: translate(55px, -38px) rotate(8deg); }
+    72%  { opacity: 1; transform: translate(0, 0) rotate(0deg) scale(1); }
+    100% { opacity: 0; transform: translate(0, 0) rotate(0deg) scale(1.5); }
+  }
+
+  /* Erkannt: der Nebel in der Kristallkugel lichtet sich */
+  .z-kugel {
+    position: absolute; left: 40px; top: 18px; width: 180px; height: 180px;
+    border-radius: 50%; overflow: hidden;
+    background: radial-gradient(circle at 50% 55%, #7d5aa6, #3b2660 60%, #1f1236);
+    box-shadow: 0 0 40px rgba(160,120,230,0.45), inset 0 -10px 30px rgba(0,0,0,0.5);
+  }
+  .z-kugel::after {
+    content: ''; position: absolute; left: 30px; top: 22px; width: 55px; height: 30px;
+    border-radius: 50%; background: rgba(255,255,255,0.35); filter: blur(3px); transform: rotate(-30deg);
+  }
+  .z-nebel {
+    position: absolute; inset: -25%; border-radius: 50%; opacity: 0;
+    background: conic-gradient(rgba(240,232,255,0.95), rgba(170,150,215,0.35), rgba(240,232,255,0.9), rgba(190,170,230,0.4), rgba(240,232,255,0.95));
+    filter: blur(12px);
+    animation: zNebel 2.3s ease-in both;
+  }
+  .z-nebel.zwei { animation-name: zNebel2; }
+  @keyframes zNebel  { 0% { opacity: 0.95; transform: rotate(0deg); } 55% { opacity: 0.9; } 100% { opacity: 0; transform: rotate(300deg) scale(1.3); } }
+  @keyframes zNebel2 { 0% { opacity: 0.8; transform: rotate(40deg) scale(0.8); } 60% { opacity: 0.7; } 100% { opacity: 0; transform: rotate(-260deg) scale(1.2); } }
+  .z-sockel {
+    position: absolute; left: 75px; top: 186px; width: 110px; height: 40px;
+    background: linear-gradient(180deg, #c9a227, #6b4a12);
+    clip-path: polygon(18% 0, 82% 0, 100% 100%, 0 100%);
+  }
+  .zauber-erkannt .z-stern { top: 108px; width: 96px; height: 96px; transform: translate(-50%, -50%) scale(1); animation: zKlaeren 2.3s ease both; }
+  @keyframes zKlaeren { 0%, 45% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); } 80% { opacity: 1; transform: translate(-50%, -50%) scale(1.12); } }
+
+  /* Gewusst: eine Eule bringt einen versiegelten Brief */
+  .z-eule { position: absolute; left: 100px; top: 0; font-size: 58px; line-height: 1; opacity: 0; animation: zEule 2.4s ease-in-out both; }
+  .z-eule .fluegel { display: inline-block; animation: zFlattern 0.22s ease-in-out infinite alternate; }
+  .z-eule .mini { position: absolute; left: 17px; top: 44px; font-size: 22px; opacity: 0; animation: zMini 2.4s linear both; }
+  @keyframes zEule {
+    0%   { opacity: 1; transform: translate(240px, 30px); }
+    40%  { transform: translate(0, 0); }
+    52%  { transform: translate(-6px, -4px); }
+    99%  { opacity: 1; }
+    100% { opacity: 0; transform: translate(-260px, -70px); }
+  }
+  @keyframes zFlattern { from { transform: scaleY(1); } to { transform: scaleY(0.86) translateY(3px); } }
+  @keyframes zMini { 0%, 41% { opacity: 1; } 42%, 100% { opacity: 0; } }
+  .z-brief { position: absolute; left: 35px; top: 105px; width: 190px; height: 124px; perspective: 600px; animation: zFallen 0.9s cubic-bezier(.4,0,.6,1) 0.95s both; }
+  @keyframes zFallen {
+    0%  { opacity: 0; transform: translate(0, -125px) scale(0.25) rotate(-18deg); }
+    1%  { opacity: 1; }
+    65% { transform: translate(-6px, 6px) scale(1) rotate(6deg); }
+  }
+  .z-umschlag {
+    position: absolute; inset: 0; border-radius: 5px;
+    background:
+      linear-gradient(to top right, transparent calc(50% - 1px), rgba(122,90,50,0.35) 50%, transparent calc(50% + 1px)) left / 50% 100% no-repeat,
+      linear-gradient(to top left, transparent calc(50% - 1px), rgba(122,90,50,0.35) 50%, transparent calc(50% + 1px)) right / 50% 100% no-repeat,
+      linear-gradient(160deg, #f3e6c4, #dcc495);
+    box-shadow: 0 8px 26px rgba(0,0,0,0.6);
+  }
+  .z-klappe {
+    position: absolute; left: 0; top: 0; width: 100%; height: 78px; z-index: 2;
+    background: linear-gradient(180deg, #e8d5a8, #d2b57c);
+    clip-path: polygon(0 0, 100% 0, 50% 100%);
+    transform-origin: top;
+    transition: transform 0.45s ease;
+  }
+  .zauber-gewusst.offen .z-klappe { transform: rotateX(180deg); z-index: 0; }
+  .zauber-gewusst .z-stern { top: 40px; width: 92px; height: 92px; z-index: 1; opacity: 0; transform: translate(-50%, -50%) scale(0.2); }
+  .zauber-gewusst.offen .z-stern {
+    z-index: 3; opacity: 1;
+    transform: translate(-50%, -50%) translateY(-112px) scale(1) rotate(0deg);
+    animation: zSpringen 0.9s cubic-bezier(.2,1.4,.4,1) 0.15s both;
+  }
+  @keyframes zSpringen { from { opacity: 0; transform: translate(-50%, -50%) translateY(0) scale(0.2) rotate(-360deg); } }
+  .z-siegel {
+    position: absolute; left: 50%; top: 46px; z-index: 4;
+    width: 50px; height: 50px; margin-left: -25px; padding: 0;
+    border: none; border-radius: 50%; background: none;
+    cursor: pointer;
+  }
+  .z-siegel span {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle at 40% 35%, #d9473a, #8f1d14 70%);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.5), inset 0 0 0 4px rgba(0,0,0,0.12);
+    transition: transform 0.6s ease-in, opacity 0.5s ease-in 0.2s;
+  }
+  .z-siegel span.l { clip-path: inset(0 50% 0 0); }
+  .z-siegel span.r { clip-path: inset(0 0 0 50%); }
+  .z-siegel::after { content: '✦'; position: absolute; inset: 0; display: grid; place-items: center; color: rgba(255,214,196,0.75); font-size: 20px; }
+  .zauber-gewusst:not(.offen) .z-siegel { animation: zPochen 1.1s ease-in-out 2.1s infinite; }
+  @keyframes zPochen { 50% { transform: scale(1.14); } }
+  .zauber-gewusst.offen .z-siegel { pointer-events: none; }
+  .zauber-gewusst.offen .z-siegel::after { opacity: 0; }
+  .zauber-gewusst.offen .z-siegel span.l { transform: translate(-30px, 60px) rotate(-60deg); opacity: 0; }
+  .zauber-gewusst.offen .z-siegel span.r { transform: translate(30px, 60px) rotate(60deg); opacity: 0; }
+  .z-tipp {
+    position: absolute; left: 0; right: 0; top: 236px;
+    font-style: italic; font-size: 1.05rem; color: var(--gold-hell);
+    animation: zEin 0.5s ease 2.1s both;
+  }
+  .zauber-gewusst.offen .z-tipp { opacity: 0; }
+
+  /* Gelegt: Buchstaben wirbeln und ordnen sich zum Stern */
+  .z-form { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 0 14px rgba(233,207,122,0.7)); }
+  .z-form polygon {
+    fill: url(#zGold); stroke: #e9cf7a; stroke-width: 3; stroke-linejoin: round;
+    stroke-dasharray: var(--l); stroke-dashoffset: 0;
+    animation: zZeichnen 0.5s ease-out 1.85s both, zFuellen 0.5s ease 2.3s both;
+  }
+  @keyframes zZeichnen { from { stroke-dashoffset: var(--l); } }
+  @keyframes zFuellen { from { fill-opacity: 0; } }
+  .z-stein {
+    position: absolute; z-index: 2;
+    width: 30px; height: 36px;
+    display: grid; place-items: center;
+    background: var(--pergament);
+    border: 1.5px solid var(--gold); border-radius: 7px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.45);
+    font-size: 1.3rem; font-weight: 700; color: var(--tinte);
+    transform: translate(-50%, -50%) translate(0px, 0px) rotate(0deg);
+    animation: zWirbel 1.8s cubic-bezier(.5,0,.3,1) both;
+  }
+  @keyframes zWirbel {
+    0%   { opacity: 0; transform: translate(-50%, -50%) translate(var(--x1), var(--y1)) rotate(var(--r1)); }
+    10%  { opacity: 1; }
+    55%  { transform: translate(-50%, -50%) translate(var(--x2), var(--y2)) rotate(var(--r2)); }
+    100% { opacity: 1; transform: translate(-50%, -50%) translate(0px, 0px) rotate(0deg); }
+  }
+
+  /* Geschrieben: eine Feder zeichnet den Stern in einem Zug */
+  .z-schrift { position: absolute; inset: 0; width: 100%; height: 100%; filter: drop-shadow(0 0 12px rgba(233,207,122,0.55)); }
+  .z-tinte { fill: url(#zGold); fill-opacity: 0; stroke: #e9cf7a; stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; transition: fill-opacity 0.6s ease; }
+  .zauber-geschrieben.offen .z-tinte { fill-opacity: 1; }
+  .z-feder { position: absolute; left: 0; top: 0; font-size: 46px; line-height: 1; opacity: 0; pointer-events: none; }
+
+  /* Krone: sie schwebt herab, dahinter drehen sich Lichtstrahlen */
+  .z-strahlen {
+    position: absolute; left: 50%; top: 50%; width: 380px; height: 380px; margin: -190px 0 0 -190px;
+    border-radius: 50%;
+    background: repeating-conic-gradient(rgba(255,230,150,0.22) 0 9deg, transparent 9deg 22deg);
+    -webkit-mask-image: radial-gradient(circle, #000 20%, transparent 70%);
+            mask-image: radial-gradient(circle, #000 20%, transparent 70%);
+    animation: zEin 0.8s ease 0.8s both, zDrehen 14s linear infinite;
+  }
+  @keyframes zDrehen { to { transform: rotate(360deg); } }
+  .z-krone {
+    position: absolute; left: 50%; top: 50%; font-size: 110px; line-height: 1;
+    transform: translate(-50%, -50%) translateY(0) rotate(0deg);
+    filter: drop-shadow(0 0 22px rgba(233,207,122,0.8));
+    animation: zKroneHerab 1.1s cubic-bezier(.3,1.3,.5,1) both;
+  }
+  @keyframes zKroneHerab {
+    0%  { opacity: 0; transform: translate(-50%, -50%) translateY(-260px) rotate(-25deg); }
+    15% { opacity: 1; }
+    70% { transform: translate(-50%, -50%) translateY(8px) rotate(6deg); }
+  }
+
+  /* Zurück in der Übersicht: der Stern fliegt an seinen Platz */
+  .flug-stern {
+    position: fixed; left: 0; top: 0; z-index: 995;
+    pointer-events: none;
+    filter: drop-shadow(0 0 12px rgba(233,207,122,0.9));
+  }
+  .flug-stern.emoji { display: grid; place-items: center; line-height: 1; }
+  .flug-spur {
+    position: fixed; z-index: 994;
+    width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #fff3c4 30%, rgba(233,207,122,0));
+    pointer-events: none;
+    animation: zSpur 0.7s ease-out forwards;
+  }
+  @keyframes zSpur { to { opacity: 0; transform: scale(0.2) translateY(10px); } }
+  .sterne i { display: inline-block; position: relative; }
+  .sterne i.landet { animation: zLanden 0.7s cubic-bezier(.2,1.6,.4,1) both; }
+  @keyframes zLanden { from { transform: scale(2.4); text-shadow: 0 0 18px #fff3c4; } }
+  .sterne i.landet::after {
+    content: ''; position: absolute; left: 50%; top: 50%;
+    width: 6px; height: 6px; margin: -3px 0 0 -3px;
+    border: 2px solid #f3dc9b; border-radius: 50%;
+    opacity: 0;
+    animation: zRing 0.7s ease-out;
+  }
+  @keyframes zRing { from { transform: scale(1); opacity: 1; } to { transform: scale(7); opacity: 0; } }
+  .sterne.verschmelzen i { transform: translateX(var(--dx)) scale(0.4); opacity: 0; transition: transform 0.5s ease-in, opacity 0.5s ease-in; }
+  .sterne.kroenung { animation: zLanden 0.8s cubic-bezier(.2,1.6,.4,1) both; }
+  /* Mindestens eine Krone in dieser Sprache: das Profil-Icon trägt sie */
+  #konto-icon.gekroent .konto-icon::before {
+    content: '👑';
+    position: absolute; top: -12px; left: -9px;
+    font-size: 18px; line-height: 1;
+    transform: rotate(-24deg);
+    filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));
+    pointer-events: none;
+  }
+  #konto-icon.kroenung .konto-icon { animation: zLanden 0.8s cubic-bezier(.2,1.6,.4,1) both; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .zauber, .zauber *, .zauber *::after, .flug-stern, .sterne i.landet, .sterne.kroenung, #konto-icon.kroenung .konto-icon {
+      animation: none !important; transition: none !important;
+    }
+    .sterne i.landet::after { display: none; }
+  }
+
   /* ── ANIMATIONEN ERGEBNIS ────────────────── */
   #anim-canvas {
     position: fixed;
@@ -1148,6 +1418,14 @@
 <body>
 
 <canvas id="anim-canvas"></canvas>
+<!-- Goldverlauf für alle Sterne des Stern-Zaubers -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="zGold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff3c4"/><stop offset="0.45" stop-color="#e9cf7a"/><stop offset="1" stop-color="#b8901c"/>
+    </linearGradient>
+  </defs>
+</svg>
 
 <div class="wrap">
   <header>
@@ -1637,10 +1915,16 @@ function sternKopf(g, gi) {
   const et = etappenVon(g);
   const n = et.filter(e => e.verdient).length;
   const titel = et.length === n ? 'Krone – alle Etappen geschafft' : `${n} von ${et.length} Sternen`;
-  return `<span class="sterne ${n === et.length ? 'krone' : ''}" role="button" tabindex="0"
-      title="${titel}" aria-label="${titel}" onclick="event.stopPropagation(); zeigeEtappen(${gi})">${n === et.length
+  // Neue Sterne fliegen gleich an ihren Platz (Stern-Zauber) – bis dahin leer
+  const wartet = wartendeSterne.filter(x => x.gruppe === gruppenId(g));
+  const alsKrone = n === et.length && !wartet.some(x => x.krone);
+  return `<span class="sterne ${alsKrone ? 'krone' : ''}" role="button" tabindex="0" data-gruppe="${esc(gruppenId(g))}"
+      title="${titel}" aria-label="${titel}" onclick="event.stopPropagation(); zeigeEtappen(${gi})">${alsKrone
         ? '👑'
-        : et.map(e => `<i class="${e.verdient ? 'voll' : ''}">${e.verdient ? '★' : '☆'}</i>`).join('')}</span>`;
+        : et.map(e => {
+            const voll = e.verdient && !wartet.some(x => x.etappe === e.id);
+            return `<i data-etappe="${e.id}" class="${voll ? 'voll' : ''}">${voll ? '★' : '☆'}</i>`;
+          }).join('')}</span>`;
 }
 
 // Auf- und zuklappen ohne das Menü neu zu zeichnen – sonst sprängen
@@ -2255,6 +2539,13 @@ function zeigeMenu() {
     .filter(([typ]) => decksSp.some(d => d.typ === typ)).map(x => x[1]);
   const liste = dazu.length > 1 ? `${dazu.slice(0, -1).join(', ')} und ${dazu[dazu.length - 1]}` : dazu.join('');
   document.getElementById('hinweis').textContent = `${gesamt} Wörter` + (liste ? ` · dazu ${liste}` : '');
+
+  // Mindestens eine Krone in dieser Sprache (die nicht erst noch kommt): das Profil-Icon trägt sie
+  const gekroent = QUIZ_DATEN.gruppen.some(g => g.sprache === sp && hatSterne(g)
+    && etappenVon(g).every(e => e.verdient)
+    && !wartendeSterne.some(x => x.gruppe === gruppenId(g) && x.krone));
+  document.getElementById('konto-icon').classList.toggle('gekroent', gekroent);
+  starteSternFluege();
 }
 
 function klappe(gi) {
@@ -2920,7 +3211,7 @@ function zeigeErgebnis() {
         <button class="menu-btn" onclick="zumMenu()">← Zur Übersicht</button>
       </div>
     </div>`;
-  if (kronen.length) setTimeout(() => zeigeKrone(kronen[0]), 600);
+  starteSternZauber();
 }
 
 // Neue Sterne dieser Runde, pro Unité zusammengefasst
@@ -3031,16 +3322,345 @@ function zeigePruefungErgebnis() {
         <button class="menu-btn" onclick="zumMenu()">← Zur Übersicht</button>
       </div>
     </div>`;
-  if (kronen.length) setTimeout(() => zeigeKrone(kronen[0]), 600);
+  starteSternZauber();
 }
 
-function zeigeKrone(name) {
+// ════════════════════════════════════════════════════════════
+//  STERN-ZAUBER
+//  Neuer Stern: am Ende der Runde ein eigener Zauber pro Etappe, dazu eine
+//  Melodie, die mit jedem Stern der Unité länger wird. Zurück in der
+//  Übersicht fliegt der Stern an seinen Platz. Bei der Krone verschmelzen
+//  die Sterne zur Krone, und eine kleine Krone setzt sich aufs Profil-Icon.
+// ════════════════════════════════════════════════════════════
+
+// Sterne, die in der Übersicht noch an ihren Platz fliegen: { gruppe, etappe } oder { gruppe, krone: true }
+const wartendeSterne = [];
+let zauberLaeuft = false;   // solange Zauber angezeigt werden (oder gleich kommen), wartet der Flug
+function wenigBewegung() {
+  return !!(window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches);
+}
+
+// Ecken eines fünfzackigen Sterns, oben beginnend (aussen, innen, aussen, …)
+function sternEcken(cx, cy, aussen, innen) {
+  return Array.from({ length: 10 }, (_, i) => {
+    const w = -Math.PI / 2 + i * Math.PI / 5;
+    const r = i % 2 ? innen : aussen;
+    return [cx + Math.cos(w) * r, cy + Math.sin(w) * r];
+  });
+}
+const punkteText = ecken => ecken.map(p => p.map(n => n.toFixed(1)).join(',')).join(' ');
+const STERN_SVG = `<svg viewBox="0 0 100 100" aria-hidden="true"><polygon points="${punkteText(sternEcken(50, 52, 47, 19))}"
+  fill="url(#zGold)" stroke="#8c6b14" stroke-width="2" stroke-linejoin="round"/></svg>`;
+
+// Jeder Stern spielt einen Ton mehr – der letzte Stern einer Unité die ganze Melodie.
+// Gibt die Anzahl Töne zurück.
+const STERN_MELODIE = [659, 784, 880, 1047, 1319];
+function tonSternMelodie(nr, von) {
+  const n = Math.max(1, Math.min(5, Math.ceil(nr / von * 5)));
+  STERN_MELODIE.slice(0, n).forEach((f, i) => {
+    const letzte = i === n - 1;
+    ton(f, 'triangle', letzte ? 0.8 : 0.3, 0.22, i * 0.17);
+    ton(f * 2, 'sine', letzte ? 0.6 : 0.2, 0.06, i * 0.17);
+  });
+  // Glitzern zum Schluss
+  [2637, 3136, 2349, 2794].forEach((f, i) => ton(f, 'sine', 0.12, 0.04, (n - 1) * 0.17 + 0.3 + i * 0.06));
+  return n;
+}
+function tonLanden() { ton(1568, 'sine', 0.3, 0.16); ton(2349, 'sine', 0.35, 0.07, 0.05); }
+
+// Die Bühne pro Etappe. zeit = wann der Stern erscheint (ms); tippen = erst auf Antippen
+const ZAUBER = {
+  entdeckt: {
+    zeit: 1950,
+    html: () => `
+      <div class="z-karte"><svg viewBox="0 0 240 170" aria-hidden="true">
+        <path class="pfad" d="M16 152 C 48 156 38 118 72 120 S 104 142 112 96"/>
+        <path class="bild" d="M156 64 L170 40 L184 64 M176 64 L192 34 L208 64"/>
+        <path class="bild" d="M20 38 q7 -6 14 0 t14 0 t14 0 M30 54 q7 -6 14 0 t14 0"/>
+        <path class="bild" d="M196 128 v28 M182 142 h28 M196 126 l-4 8 h8 z"/>
+        <path class="bild" d="M44 92 a7 7 0 1 1 0.1 0 M44 99 v8 M60 84 a6 6 0 1 1 0.1 0 M60 90 v7"/>
+        <path class="kreuz" d="M111 76 L129 94 M129 76 L111 94"/>
+      </svg></div>
+      <div class="z-stern">${STERN_SVG}</div>
+      <div class="z-lupe"><svg viewBox="0 0 90 90" aria-hidden="true">
+        <circle cx="38" cy="38" r="27" fill="rgba(255,250,230,0.22)" stroke="#5a3a1a" stroke-width="6"/>
+        <circle cx="38" cy="38" r="27" fill="none" stroke="#c9a227" stroke-width="2.5"/>
+        <line x1="58" y1="58" x2="84" y2="84" stroke="#5a3a1a" stroke-width="9" stroke-linecap="round"/>
+        <path d="M23 30 a16 16 0 0 1 12 -11" stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>
+      </svg></div>`,
+  },
+  erkannt: {
+    zeit: 1950,
+    html: () => `
+      <div class="z-kugel"><div class="z-nebel"></div><div class="z-nebel zwei"></div></div>
+      <div class="z-sockel"></div>
+      <div class="z-stern">${STERN_SVG}</div>`,
+  },
+  gewusst: {
+    tippen: true,
+    html: () => `
+      <div class="z-eule" aria-hidden="true"><span class="fluegel">🦉</span><span class="mini">✉️</span></div>
+      <div class="z-brief">
+        <div class="z-umschlag"></div>
+        <div class="z-stern">${STERN_SVG}</div>
+        <div class="z-klappe"></div>
+        <button class="z-siegel" aria-label="Siegel öffnen"><span class="l"></span><span class="r"></span></button>
+      </div>
+      <div class="z-tipp">Tippe aufs Siegel</div>`,
+  },
+  gelegt: {
+    zeit: 2450,
+    html: s => {
+      const wort = s.g.sprache === 'en' ? 'incredible' : 'magnifique';
+      const ecken = sternEcken(130, 134, 112, 48);
+      let umfang = 0;
+      ecken.forEach((p, i) => { const q = ecken[(i + 1) % 10]; umfang += Math.hypot(q[0] - p[0], q[1] - p[1]); });
+      const zufall = n => Math.round((Math.random() * 2 - 1) * n);
+      return `
+        <svg class="z-form" viewBox="0 0 260 260" aria-hidden="true"><polygon points="${punkteText(ecken)}" style="--l:${umfang.toFixed(0)}"/></svg>
+        ${[...wort].map((c, i) => `<span class="z-stein" style="left:${ecken[i][0].toFixed(0)}px; top:${ecken[i][1].toFixed(0)}px;
+            --x1:${zufall(150)}px; --y1:${zufall(150)}px; --r1:${zufall(360)}deg;
+            --x2:${zufall(110)}px; --y2:${zufall(110)}px; --r2:${zufall(270)}deg;
+            animation-delay:${(i * 0.05).toFixed(2)}s">${c}</span>`).join('')}`;
+    },
+  },
+  geschrieben: {
+    html: () => {
+      // In einem Zug, wie man einen Stern von Hand zeichnet
+      const e = sternEcken(130, 138, 108, 44).filter((_, i) => i % 2 === 0);
+      const d = [0, 2, 4, 1, 3].map((k, i) => `${i ? 'L' : 'M'}${e[k][0].toFixed(1)} ${e[k][1].toFixed(1)}`).join(' ') + ' Z';
+      return `
+        <svg class="z-schrift" viewBox="0 0 260 260" aria-hidden="true"><path class="z-tinte" d="${d}"/></svg>
+        <span class="z-feder" aria-hidden="true">🪶</span>`;
+    },
+    lauf(el, enthuelle) {
+      const pfad = el.querySelector('.z-tinte');
+      const feder = el.querySelector('.z-feder');
+      const buehne = el.querySelector('.z-buehne');
+      const laenge = pfad.getTotalLength();
+      pfad.style.strokeDasharray = laenge;
+      pfad.style.strokeDashoffset = laenge;
+      const dauer = 1900, start = performance.now() + 350;
+      feder.style.opacity = 1;
+      const schritt = jetzt => {
+        if (!el.isConnected) return;
+        const t = Math.min(1, Math.max(0, (jetzt - start) / dauer));
+        const e = t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+        pfad.style.strokeDashoffset = laenge * (1 - e);
+        const p = pfad.getPointAtLength(laenge * e);
+        const k = buehne.clientWidth / 260;
+        // Die Federspitze sitzt unten links im Zeichen
+        feder.style.transform = `translate(${(p.x * k - 4).toFixed(1)}px, ${(p.y * k - 42).toFixed(1)}px)`;
+        if (t < 1) { requestAnimationFrame(schritt); return; }
+        feder.style.transition = 'transform 0.7s ease-in, opacity 0.7s ease-in';
+        feder.style.transform += ' translate(120px, -150px) rotate(25deg)';
+        feder.style.opacity = 0;
+        enthuelle();
+      };
+      requestAnimationFrame(schritt);
+    },
+  },
+  krone: {
+    zeit: 1050,
+    html: () => `<div class="z-strahlen"></div><div class="z-krone" aria-hidden="true">👑</div>`,
+  },
+};
+
+// Am Ende der Runde: die neuen Sterne nacheinander zeigen, danach allenfalls die Krone
+function starteSternZauber() {
+  const neu = aktuell.neueSterne || [];
+  if (!neu.length) return;
+  const schritte = [];
+  [...new Set(neu.map(x => x.gruppe))].forEach(gid => {
+    const g = QUIZ_DATEN.gruppen.find(x => gruppenId(x) === gid);
+    if (!g) return;
+    const et = etappenVon(g);
+    const eigene = neu.filter(x => x.gruppe === gid && et.some(e => e.id === x.etappe))
+      .sort((a, b) => et.findIndex(e => e.id === a.etappe) - et.findIndex(e => e.id === b.etappe));
+    // Wie viele Sterne die Unité vor dieser Runde hatte – für die Länge der Melodie
+    const vorher = et.filter(e => e.verdient).length - eigene.length;
+    eigene.forEach((x, i) => {
+      schritte.push({ g, etappe: et.find(e => e.id === x.etappe), nr: vorher + i + 1, von: et.length });
+      wartendeSterne.push({ gruppe: gid, etappe: x.etappe });
+    });
+    if (eigene.some(x => x.krone)) {
+      schritte.push({ g, krone: true });
+      wartendeSterne.push({ gruppe: gid, krone: true });
+    }
+  });
+  if (!schritte.length) return;
+  zauberLaeuft = true;
+  let i = 0;
+  const weiter = () => {
+    if (i < schritte.length) zeigeSternZauber(schritte[i++], weiter);
+    else zauberLaeuft = false;
+  };
+  setTimeout(weiter, wenigBewegung() ? 300 : 900);
+}
+
+function zeigeSternZauber(s, fertig) {
+  const art = s.krone ? 'krone' : s.etappe.id;
+  const z = ZAUBER[art];
+  const unite = s.g.titel.split(' · ').slice(1).join(' · ') || s.g.titel;
+  const f = s.g.sprache === 'en' ? '🇬🇧' : '🇫🇷';
   const el = document.createElement('div');
-  el.className = 'level-up-toast krone-toast';
-  el.innerHTML = `<span class="krone-gross">👑</span><br>Krone für ${name}`;
+  el.className = 'zauber zauber-' + art;
+  el.setAttribute('role', 'dialog');
+  el.setAttribute('aria-modal', 'true');
+  el.setAttribute('aria-label', s.krone ? `Krone für ${unite}` : `Neuer Stern in ${unite}: ${s.etappe.name}`);
+  el.innerHTML = `
+    <div class="z-himmel"></div>
+    <div class="z-buehne">${z.html(s)}</div>
+    <div class="z-text">
+      <div class="z-titel">${s.krone ? 'Krone für' : 'Neuer Stern'}</div>
+      <div class="z-name">${s.krone ? unite : s.etappe.name}</div>
+      <div class="z-was">${s.krone ? 'Alle Sterne gesammelt!' : `${unite}: ${s.etappe.was.replace('{f}', f)}`}</div>
+    </div>
+    <button class="restart-btn z-weiter">Weiter ✦</button>`;
   document.body.appendChild(el);
-  konfetti();
-  setTimeout(() => el.remove(), 3200);
+
+  const schnell = wenigBewegung();
+  let offen = false;
+  const enthuelle = () => {
+    if (offen || !el.isConnected) return;
+    offen = true;
+    el.classList.add('offen');
+    if (s.krone) { tonFanfare(); konfetti(); }
+    else tonSternMelodie(s.nr, s.von);
+  };
+  if (z.tippen) {
+    // Erst antippbar, wenn der Brief gelandet ist
+    setTimeout(() => el.querySelector('.z-brief').addEventListener('click', enthuelle), schnell ? 0 : 1700);
+  } else if (z.lauf && !schnell) {
+    z.lauf(el, enthuelle);
+  } else {
+    setTimeout(enthuelle, schnell ? 150 : z.zeit);
+  }
+  el.querySelector('.z-weiter').addEventListener('click', () => {
+    if (!offen || el.classList.contains('zu')) return;
+    el.classList.add('zu');
+    setTimeout(() => { el.remove(); fertig(); }, schnell ? 0 : 250);
+  });
+}
+
+// ── Flug in der Übersicht ──
+let flugLauf = 0;   // ein neues Menü bricht laufende Flüge ab und startet die übrigen neu
+
+function starteSternFluege() {
+  const lauf = ++flugLauf;
+  document.querySelectorAll('.flug-stern, .flug-spur').forEach(x => x.remove());
+  // Nur in der sichtbaren Übersicht
+  if (document.body.classList.contains('quiz') || document.body.classList.contains('konto')) return;
+  const kopfVon = gid => [...document.querySelectorAll('#gruppen .sterne')].find(x => x.dataset.gruppe === gid);
+  const naechster = () => {
+    if (lauf !== flugLauf) return;
+    // Inzwischen eine Runde gestartet? Dann beim nächsten Menü weiter
+    if (document.body.classList.contains('quiz') || document.body.classList.contains('konto')) return;
+    // Kommt noch ein Stern-Zauber (z. B. schnell zur Übersicht getippt)? Erst fertig zaubern
+    if (zauberLaeuft) { setTimeout(naechster, 400); return; }
+    const w = wartendeSterne.find(x => kopfVon(x.gruppe));
+    if (!w) return;
+    const kopf = kopfVon(w.gruppe);
+    const ende = () => {
+      const i = wartendeSterne.indexOf(w);
+      if (i >= 0) wartendeSterne.splice(i, 1);
+      setTimeout(naechster, wenigBewegung() ? 0 : 250);
+    };
+    if (w.krone) { kroene(kopf, lauf, ende); return; }
+    const ziel = kopf.querySelector(`i[data-etappe="${w.etappe}"]`);
+    if (!ziel) { ende(); return; }
+    zeigeImBild(kopf);
+    const r = ziel.getBoundingClientRect();
+    const start = { x: innerWidth / 2, y: innerHeight * 0.45 };
+    const zielPunkt = { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    // Erst nach links oben ausholen, dann in einem Bogen an den Platz
+    const steuer = { x: Math.max(24, Math.min(start.x, zielPunkt.x) - 120), y: Math.min(start.y, zielPunkt.y) - 70 };
+    flug(STERN_SVG, false, start, steuer, zielPunkt, 64, r.height * 1.2, lauf, () => {
+      ziel.classList.add('voll', 'landet');
+      ziel.textContent = '★';
+      tonLanden();
+      ende();
+    });
+  };
+  setTimeout(naechster, wenigBewegung() ? 0 : 450);
+}
+
+function zeigeImBild(el) {
+  const r = el.getBoundingClientRect();
+  if (r.top < 60 || r.bottom > innerHeight - 10) el.scrollIntoView({ block: 'center' });
+}
+
+// Fliegt inhalt auf einer Bogenbahn von start nach ziel (Bildschirmpunkte)
+function flug(inhalt, emoji, start, steuer, ziel, groesse, zielGroesse, lauf, fertig) {
+  if (wenigBewegung()) { fertig(); return; }
+  const el = document.createElement('div');
+  el.className = 'flug-stern' + (emoji ? ' emoji' : '');
+  el.innerHTML = inhalt;
+  el.style.width = el.style.height = groesse + 'px';
+  el.style.margin = `${-groesse / 2}px 0 0 ${-groesse / 2}px`;
+  if (emoji) el.style.fontSize = (groesse * 0.85) + 'px';
+  document.body.appendChild(el);
+  const n = 24, bilder = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, u = 1 - t;
+    const x = u * u * start.x + 2 * u * t * steuer.x + t * t * ziel.x;
+    const y = u * u * start.y + 2 * u * t * steuer.y + t * t * ziel.y;
+    const sk = (1 - t) * (i < 3 ? 0.6 + i * 0.2 : 1) + t * (zielGroesse / groesse);
+    bilder.push({ transform: `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) scale(${sk.toFixed(3)}) rotate(${emoji ? 0 : Math.round(t * 540)}deg)`,
+                  opacity: i === 0 ? 0 : 1, offset: t });
+  }
+  const anim = el.animate(bilder, { duration: emoji ? 900 : 1250, easing: 'cubic-bezier(.45,0,.25,1)', fill: 'forwards' });
+  // Funkenspur
+  const spur = setInterval(() => {
+    if (!el.isConnected) { clearInterval(spur); return; }
+    const b = el.getBoundingClientRect();
+    const f = document.createElement('span');
+    f.className = 'flug-spur';
+    f.style.left = (b.left + b.width / 2 + (Math.random() * 10 - 5)) + 'px';
+    f.style.top = (b.top + b.height / 2 + (Math.random() * 10 - 5)) + 'px';
+    f.addEventListener('animationend', () => f.remove());
+    document.body.appendChild(f);
+  }, 30);
+  anim.onfinish = () => {
+    clearInterval(spur);
+    el.remove();
+    if (lauf === flugLauf) fertig();
+  };
+}
+
+// Alle Sterne der Unité verschmelzen zur Krone; eine kleine Krone fliegt aufs Profil-Icon
+function kroene(kopf, lauf, fertig) {
+  zeigeImBild(kopf);
+  const r = kopf.getBoundingClientRect();
+  const mitte = r.left + r.width / 2;
+  kopf.querySelectorAll('i').forEach(i => {
+    const b = i.getBoundingClientRect();
+    i.style.setProperty('--dx', (mitte - (b.left + b.width / 2)).toFixed(1) + 'px');
+  });
+  kopf.classList.add('verschmelzen');
+  setTimeout(() => {
+    if (lauf !== flugLauf) return;
+    kopf.classList.remove('verschmelzen');
+    kopf.classList.add('krone', 'kroenung');
+    kopf.innerHTML = '👑';
+    tonFanfare();
+    const wrap = document.getElementById('konto-icon');
+    const icon = wrap.querySelector('.konto-icon');
+    const ankommen = () => {
+      wrap.classList.add('gekroent', 'kroenung');
+      setTimeout(() => wrap.classList.remove('kroenung'), 900);
+      fertig();
+    };
+    if (!icon) { fertig(); return; }   // ohne Konto gibt es kein Profil-Icon
+    setTimeout(() => {
+      if (lauf !== flugLauf) return;
+      const a = kopf.getBoundingClientRect(), b = icon.getBoundingClientRect();
+      if (b.bottom < 0) { ankommen(); return; }   // Icon gerade nicht im Bild
+      const start = { x: a.left + a.width / 2, y: a.top + a.height / 2 };
+      const ziel = { x: b.left, y: b.top - 3 };   // dort sitzt die kleine Krone
+      flug('👑', true, start, { x: (start.x + ziel.x) / 2, y: Math.min(start.y, ziel.y) - 60 }, ziel, 44, 18, lauf, ankommen);
+    }, wenigBewegung() ? 0 : 700);
+  }, wenigBewegung() ? 0 : 550);
 }
 
 // ════════════════════════════════════════════════════════════
