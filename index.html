@@ -1153,20 +1153,8 @@
   @keyframes zSpaet { from { opacity: 0; visibility: hidden; } to { opacity: 1; visibility: visible; } }
   .zauber-krone.offen .z-aufdecken { display: none; }
 
-  /* Seltene Überraschung: Band oben, dazu Drache, Regenbogen oder Sternschnuppen */
-  .zauber:not(.u-los) .u-band, .zauber:not(.u-los) .u-buehne { display: none; }
-  .u-band {
-    position: absolute; left: 50%; top: calc(18px + env(safe-area-inset-top)); z-index: 3;
-    padding: 8px 18px;
-    border-radius: 30px;
-    background: linear-gradient(90deg, #7d5aa6, #c9a227);
-    box-shadow: 0 4px 16px rgba(0,0,0,0.5), 0 0 18px rgba(201,162,39,0.5);
-    color: #fff8e6; font-family: 'Cinzel', Georgia, serif; font-weight: 700; font-size: 0.95rem;
-    white-space: nowrap;
-    transform: translateX(-50%) rotate(-3deg) scale(1);
-    animation: uBand 0.7s cubic-bezier(.2,1.6,.4,1) both;
-  }
-  @keyframes uBand { from { opacity: 0; transform: translateX(-50%) rotate(-3deg) scale(0.2); } }
+  /* Seltene Überraschung: Drache, Regenbogen oder Sternschnuppen – ohne Ankündigung */
+  .zauber:not(.u-los) .u-buehne { display: none; }
   .u-buehne { position: absolute; inset: 0; pointer-events: none; }
   .u-drache { position: absolute; left: 100%; top: 16%; z-index: 5; font-size: 74px; line-height: 1; opacity: 0; animation: uDrache 3s linear both; }
   .u-drache span { display: inline-block; animation: uSchweben 0.45s ease-in-out infinite alternate; }
@@ -1561,7 +1549,7 @@
 //  App den Stand der geladenen Seite: GitHub Pages liefert ihn als
 //  «Last-Modified» mit, er ändert sich also bei jeder Veröffentlichung.
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = 27;
+const APP_VERSION = 28;
 
 function versionText() {
   const stand = new Date(document.lastModified);
@@ -3745,7 +3733,7 @@ function zeigeSternZauber(s, fertig) {
   if (ueber) { el.classList.add('ueberraschung'); el.dataset.ueberraschung = ueber; }
   el.innerHTML = `
     <div class="z-himmel"></div>
-    ${ueber ? `<div class="u-band">✨ Seltene Überraschung!</div><div class="u-buehne">${ueberraschungHtml(ueber)}</div>` : ''}
+    ${ueber ? `<div class="u-buehne">${ueberraschungHtml(ueber)}</div>` : ''}
     <div class="z-buehne">${z.html(s)}</div>
     <div class="z-text">
       <div class="z-titel">${s.krone ? 'Krone für' : 'Neuer Stern'}</div>
