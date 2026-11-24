@@ -2052,6 +2052,22 @@ function wannText(zeit) {
   return 'länger nicht geübt';
 }
 
+// Die letzten Resultate einer Liste (in Prozent, ältestes zuerst). Ältere Daten
+// kennen nur das letzte Resultat – damit beginnt die Reihe.
+const VERLAUF_RUNDEN = 3;
+function verlaufVon(stand) {
+  if (!stand) return [];
+  if (Array.isArray(stand.verlauf)) return stand.verlauf;
+  return stand.letzteQuote != null ? [stand.letzteQuote] : [];
+}
+
+// «70 › 85 › 100 %», bei nur einer Runde «zuletzt 100 %»
+function verlaufText(stand) {
+  const v = verlaufVon(stand);
+  if (!v.length) return '';
+  return v.length === 1 ? `zuletzt ${v[0]} %` : `${v.join(' › ')} %`;
+}
+
 function untertitel(deck) {
   const n = anzahlWoerter(deck);
   if (deck.typ === 'fehler') {
@@ -2069,12 +2085,15 @@ function untertitel(deck) {
     const schreib = pruefungsEintraege(deck).filter(x => x.eintrag.schreiben).length;
     return `${n} Wörter` + (schreib ? `, ${schreib} davon schreiben` : '');
   }
+  // Hinter dem Stand die letzten Resultate der Liste; ohne solche wie bisher «wann»
+  const runden = verlaufText(stand);
+  const dazu = runden ? ` · ${runden}` : wann ? ` · ${wann}` : '';
   // Sobald ein Wort begonnen ist, zählt, wie viele sitzen
   const l = hatLernstand(deck) ? lernstandVon(deck) : null;
   if (l && l.sitzen + l.unterwegs > 0) {
-    return `${l.sitzen} von ${n} sitzen` + (wann ? ` · ${wann}` : '');
+    return `${l.sitzen} von ${n} sitzen` + dazu;
   }
-  return `${n} Wörter` + (wann ? ` · ${wann}` : ' · neu');
+  return `${n} Wörter` + (dazu || ' · neu');
 }
 
 
@@ -2868,6 +2887,7 @@ function zeigeErgebnis() {
   // Fortschritt des Decks merken
   const stand = daten.decks[aktuell.deck.id] || { geuebt: 0 };
   stand.geuebt++;
+  stand.verlauf = [...verlaufVon(stand), pct].slice(-VERLAUF_RUNDEN);
   stand.letzteQuote = pct;
   stand.zuletzt = Date.now();
   daten.decks[aktuell.deck.id] = stand;
