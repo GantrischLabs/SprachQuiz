@@ -842,6 +842,61 @@
     color: #b9a37a;
   }
 
+  /* ── PRÜFUNG ─────────────────────────────── */
+  /* Menükarte: steht unter den Listen, etwas abgesetzt */
+  .deck.pruefung { margin-top: 6px; border-left-style: double; border-left-width: 6px; }
+  .deck.pruefung .icon { background: #3a2418; }
+  .modus-fest {
+    display: inline-flex; align-items: center;
+    min-height: 38px; padding: 6px 14px;
+    border-radius: 50px;
+    background: linear-gradient(180deg, #e9cf7a, #c9a227);
+    color: #2a1c10; font-size: 0.8rem; font-weight: 700; white-space: nowrap;
+  }
+  /* Gewählt, aber ohne zu verraten, ob es stimmt */
+  .ans-btn.gewaehlt { border-color: var(--gold); background: #f5e4b0; box-shadow: 0 0 0 2px var(--gold); }
+  .weiss-nicht {
+    align-self: center;
+    min-height: 40px; padding: 6px 16px;
+    border: none; background: transparent;
+    color: var(--tinte-blass); font-size: 0.9rem; font-style: italic;
+    text-decoration: underline; text-underline-offset: 3px;
+  }
+  .weiss-nicht:disabled { opacity: 0.4; }
+
+  .pruefung-start .p-icon { font-size: 3rem; line-height: 1; margin-bottom: 12px; }
+  .p-regeln {
+    list-style: none;
+    max-width: 330px; margin: 6px auto 22px; padding: 0;
+    text-align: left; color: var(--pergament); font-size: 1.02rem; line-height: 1.35;
+  }
+  .p-regeln li { display: flex; gap: 10px; padding: 6px 0; }
+  .p-regeln li span { width: 1.4em; flex-shrink: 0; text-align: center; }
+
+  .result-screen p.p-zahlen { margin-bottom: 14px; }
+  .p-fehler {
+    margin: 22px auto 26px; max-width: 420px;
+    text-align: left;
+    color: var(--tinte);
+    background: var(--pergament);
+    border: 1px solid var(--pergament-dunkel);
+    border-radius: 4px;
+    padding: 14px 14px 10px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.45);
+  }
+  .p-fehler h3 { font-family: 'Cinzel', Georgia, serif; font-size: 1rem; margin-bottom: 6px; color: #5a3a1a; }
+  .p-fehler ul { list-style: none; padding: 0; margin: 0; }
+  .pf { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; padding: 8px 0; border-top: 1px solid rgba(107,86,60,0.22); }
+  .pf:first-child { border-top: none; }
+  .pf-de { grid-column: 1 / -1; font-size: 0.82rem; color: var(--tinte-blass); }
+  .pf-du { color: #7d1f1f; overflow-wrap: anywhere; }
+  .pf-du i { color: var(--tinte-blass); font-size: 0.9rem; }
+  .pf-du em { display: block; font-style: normal; font-size: 0.75rem; color: #a0601d; }
+  .pf.pf-akzent .pf-du { color: #a0601d; }
+  .pf-ok { color: #1e5233; font-weight: 700; overflow-wrap: anywhere; }
+  .pf-ok mark { background: #f6d58a; color: #7d1f1f; border-radius: 2px; padding: 0 1px; }
+  .result-screen .p-fehler p.p-hinweis { margin: 8px 0 0; font-size: 0.82rem; color: var(--tinte-blass); }
+
   /* ── ANIMATIONEN ERGEBNIS ────────────────── */
   #anim-canvas {
     position: fixed;
@@ -1167,7 +1222,10 @@ function leereDaten() {
            // Was mit einem Wort schon einmal richtig war: erfolge[deckId][schluessel] = Bits (siehe ERFOLG)
            erfolge: {},
            // Verdiente Etappen pro Unité: sterne[gruppenId] = ['entdeckt', …] – einmal verdient, bleibt verdient
-           sterne: {} };
+           sterne: {},
+           // Angefangene Prüfung – eigener Platz, damit sie nicht verloren geht,
+           // wenn zwischendurch eine Liste geübt wird (sonst wie «laufend»)
+           pruefungLauf: null };
 }
 
 function ladeDaten() {
@@ -1250,9 +1308,28 @@ SPRACHEN.forEach(sp => {
   alleDecks[HEUTE[sp].id] = HEUTE[sp];
 });
 
+// Prüfung pro Unité: alle Wörter der Wortlisten – fette selbst schreiben,
+// die übrigen 🇩🇪→Fremdsprache auswählen. Rückmeldung erst am Schluss.
+// Die Prüfung steht nicht in g.decks und zählt deshalb nicht für «Entdeckt».
+const PRUEFUNG = {};
+QUIZ_DATEN.gruppen.filter(hatSterne).forEach(g => {
+  const d = { id: '__pruefung-' + gruppenId(g), icon: '📝', titel: 'Prüfung', typ: 'pruefung',
+              gruppe: g, sprache: g.sprache, farbe: g.farbe, hell: g.hell, woerter: [] };
+  PRUEFUNG[gruppenId(g)] = d;
+  alleDecks[d.id] = d;
+});
+
+// Alle Wörter einer Prüfung → [{ deck, eintrag }]
+function pruefungsEintraege(deck) {
+  return deck.gruppe.decks.filter(d => d.typ === 'vokabeln')
+    .flatMap(d => d.woerter.map(w => ({ deck: d, eintrag: w })));
+}
+
+function istPruefung() { return !!aktuell.deck && aktuell.deck.typ === 'pruefung'; }
+
 function standardModus(deck) {
   return { vokabeln: 'f-d', artikel: 'artikel', konjugation: 'konj', zahlen: 'num-f',
-           fehler: 'gemischt', heute: 'gemischt' }[deck.typ];
+           fehler: 'gemischt', heute: 'gemischt', pruefung: 'pruefung' }[deck.typ];
 }
 
 function modiVon(deck) {
@@ -1275,6 +1352,7 @@ function modiVon(deck) {
 
 function anzahlWoerter(deck) {
   if (deck.typ === 'heute') return heuteEintraege(deck.sprache).length;
+  if (deck.typ === 'pruefung') return pruefungsEintraege(deck).length;
   return deck.typ === 'fehler' ? fehlerEintraege().length : deck.woerter.length;
 }
 
@@ -1859,6 +1937,11 @@ function baueSession(deck, modus) {
     return mische(heuteEintraege(deck.sprache)).map(({ deck: d, eintrag, stand }) =>
       baueKarte(d, eintrag, heuteModus(d, stand, eintrag)));
   }
+  if (deck.typ === 'pruefung') {
+    // Alle Wörter, ohne LIMIT
+    return mische(pruefungsEintraege(deck)).map(({ deck: d, eintrag }) =>
+      baueKarte(d, eintrag, eintrag.schreiben ? 'schreiben' : 'd-f'));
+  }
   const schreibModus = modus === 'ordnen' || modus === 'schreiben';
   const quelle = deck.typ === 'fehler'
     ? fehlerEintraege()
@@ -1969,6 +2052,15 @@ function untertitel(deck) {
   if (n === 0) return 'noch keine Wörter erfasst';
   const stand = daten.decks[deck.id];
   const wann = stand && wannText(stand.zuletzt);
+  if (deck.typ === 'pruefung') {
+    if (laufendPasst(deck.id, 'pruefung')) {
+      const l = daten.pruefungLauf;
+      return `angefangen – weiter mit Frage ${l.index + 1} von ${l.karten.length}`;
+    }
+    if (stand) return `Rekord ${stand.beste} %` + (wann ? ` · ${wann}` : '');
+    const schreib = pruefungsEintraege(deck).filter(x => x.eintrag.schreiben).length;
+    return `${n} Wörter` + (schreib ? `, ${schreib} davon schreiben` : '');
+  }
   // Sobald ein Wort begonnen ist, zählt, wie viele sitzen
   const l = hatLernstand(deck) ? lernstandVon(deck) : null;
   if (l && l.sitzen + l.unterwegs > 0) {
@@ -2089,11 +2181,11 @@ function zeigeMenu() {
       </button>
       ${etappenListe(g, gi)}
       <div class="deck-list">
-        ${g.decks.map(d => {
+        ${[...g.decks, ...(PRUEFUNG[gruppenId(g)] ? [PRUEFUNG[gruppenId(g)]] : [])].map(d => {
           const leer = anzahlWoerter(d) === 0;
           const r = ringVon(d);
           return `
-          <button class="deck ${leer ? 'leer' : ''}"
+          <button class="deck ${leer ? 'leer' : ''} ${d.typ === 'pruefung' ? 'pruefung' : ''}"
                   style="--dc:${g.farbe}; --dcl:${g.hell}; --p:${r.p}; --q:${r.q}"
                   ${leer ? 'disabled' : `onclick="oeffneDeck('${d.id}')"`}>
             <span class="icon">${d.icon}</span>
@@ -2156,7 +2248,8 @@ function zumMenu() {
 // ════════════════════════════════════════════════════════════
 //  QUIZ
 // ════════════════════════════════════════════════════════════
-const aktuell = { deck: null, modus: null, index: 0, score: 0, beantwortet: false, karten: [], aufstiege: 0, tagNeu: false, neueSterne: [] };
+const aktuell = { deck: null, modus: null, index: 0, score: 0, beantwortet: false, karten: [], aufstiege: 0, tagNeu: false, neueSterne: [],
+                  antworten: [] };   // nur in der Prüfung: { e: Ergebnis, a: Antwort } pro Frage
 let serie = 0;
 
 function oeffneDeck(id, modus) {
@@ -2166,8 +2259,8 @@ function oeffneDeck(id, modus) {
   aktuell.deck = deck;
   aktuell.modus = modus || standardModus(deck);
 
-  // «Heute fällig» hat seine eigene Karte im Menü und gehört nicht unter «Weiter üben»
-  if (deck.typ !== 'heute') {
+  // «Heute fällig» und die Prüfung haben ihre eigene Karte im Menü und gehören nicht unter «Weiter üben»
+  if (deck.typ !== 'heute' && deck.typ !== 'pruefung') {
     daten.letztes = { deckId: id, modus: aktuell.modus };
     daten.letzteJe[deck.sprache || aktiveSprache()] = daten.letztes;
     speichere();
@@ -2179,13 +2272,16 @@ function oeffneDeck(id, modus) {
   document.documentElement.style.setProperty('--cl', deck.hell);
   document.getElementById('autoread-toggle').checked = vorlesen;
 
-  document.getElementById('modi').innerHTML = modiVon(deck).map(m =>
+  // Die Prüfung hat nur eine Art – und ein versehentlicher Tipp soll sie nicht neu starten
+  document.getElementById('modi').innerHTML = deck.typ === 'pruefung'
+    ? '<span class="modus-fest">📝 Prüfung</span>'
+    : modiVon(deck).map(m =>
     `<button class="mode-btn ${m.id === aktuell.modus ? 'active' : ''}"
              onclick="setzeModus('${m.id}')">${m.label}</button>`).join('');
 
   // Angefangene Runde fortsetzen statt neu beginnen
   if (laufendPasst(id, aktuell.modus)) {
-    const l = daten.laufend;
+    const l = daten[laufPlatz(deck)];
     stoppeTimer();
     stoppeCanvas();
     serie = 0;
@@ -2194,6 +2290,7 @@ function oeffneDeck(id, modus) {
     aktuell.aufstiege = l.aufstiege || 0;
     aktuell.neueSterne = l.neueSterne || [];
     aktuell.tagNeu = !!l.tagNeu;
+    aktuell.antworten = l.antworten || [];
     aktuell.beantwortet = false;
     aktuell.karten = l.karten;
     zeichneFrage();
@@ -2203,9 +2300,14 @@ function oeffneDeck(id, modus) {
   window.scrollTo(0, 0);
 }
 
+// Wo die angefangene Runde liegt: die Prüfung hat ihren eigenen Platz
+function laufPlatz(deck) {
+  return deck && deck.typ === 'pruefung' ? 'pruefungLauf' : 'laufend';
+}
+
 // Passt die gespeicherte Runde zu diesem Deck – und ist sie noch frisch?
 function laufendPasst(deckId, modus) {
-  const l = daten.laufend;
+  const l = daten[laufPlatz(alleDecks[deckId])];
   return !!l
     && l.deckId === deckId
     && l.modus === modus
@@ -2218,7 +2320,7 @@ function laufendPasst(deckId, modus) {
 
 // Stand der laufenden Runde sichern (überlebt auch einen App-Neustart)
 function merkeLaufend(index) {
-  daten.laufend = {
+  daten[laufPlatz(aktuell.deck)] = {
     deckId: aktuell.deck.id,
     modus: aktuell.modus,
     index,
@@ -2226,6 +2328,7 @@ function merkeLaufend(index) {
     aufstiege: aktuell.aufstiege,
     neueSterne: aktuell.neueSterne,
     tagNeu: aktuell.tagNeu,
+    antworten: aktuell.antworten,
     sprache: aktuell.deck.sprache || aktiveSprache(),
     karten: aktuell.karten,
     zeit: Date.now(),
@@ -2255,10 +2358,35 @@ function starteRunde() {
   aktuell.aufstiege = 0;
   aktuell.neueSterne = [];
   aktuell.tagNeu = false;
+  aktuell.antworten = [];
   aktuell.beantwortet = false;
   aktuell.karten = baueSession(aktuell.deck, aktuell.modus);
-  daten.laufend = null;   // eine neue Runde ersetzt die angefangene
+  daten[laufPlatz(aktuell.deck)] = null;   // eine neue Runde ersetzt die angefangene
+  if (istPruefung()) { zeigePruefungStart(); return; }
   zeichneFrage();
+}
+
+// Vor der Prüfung: was kommt, und dass die Auflösung erst am Schluss kommt
+function zeigePruefungStart() {
+  const n = aktuell.karten.length;
+  const schreib = aktuell.karten.filter(k => k.richtung === 'schreiben').length;
+  const f = aktuell.deck.sprache === 'en' ? '🇬🇧' : '🇫🇷';
+  const stand = daten.decks[aktuell.deck.id];
+  document.getElementById('quiz-area').innerHTML = `
+    <div class="result-screen pruefung-start">
+      <div class="p-icon">📝</div>
+      <h2>${vollerTitel(aktuell.deck)}</h2>
+      <ul class="p-regeln">
+        <li><span>📚</span>${n} Wörter aus allen Listen der ${aktuell.deck.gruppe.titel.split(' · ').pop()}</li>
+        ${schreib ? `<li><span>✍️</span>${schreib} davon schreibst du selbst</li>` : ''}
+        <li><span>👆</span>bei ${schreib ? `den übrigen ${n - schreib}` : 'allen'} wählst du 🇩🇪→${f}</li>
+        <li><span>🤫</span>Ob es richtig war, siehst du erst am Schluss</li>
+      </ul>
+      ${stand && stand.beste != null ? `<p class="aufstieg">🏆 Dein Rekord: ${stand.beste} %</p>` : ''}
+      <div class="result-btns">
+        <button class="restart-btn" id="pruefung-los" onclick="zeichneFrage()">Los geht's</button>
+      </div>
+    </div>`;
 }
 
 function zeichneFrage() {
@@ -2279,7 +2407,7 @@ function zeichneFrage() {
     </div>
     <div class="progress-info">
       <span>Frage ${aktuell.index + 1} von ${aktuell.karten.length}</span>
-      <span id="score-info">✅ ${aktuell.score} richtig</span>
+      <span id="score-info">${istPruefung() ? '🤫 Auflösung am Schluss' : `✅ ${aktuell.score} richtig`}</span>
     </div>
     <div class="card">
       <div class="card-label">${k.label}</div>
@@ -2306,7 +2434,7 @@ function zeichneFrage() {
     const b = document.createElement('button');
     b.className = 'ans-btn';
     b.textContent = opt;
-    b.addEventListener('click', () => pruefe(b, opt, k));
+    b.addEventListener('click', () => istPruefung() ? waehleInPruefung(b, opt, k) : pruefe(b, opt, k));
     frag.appendChild(b);
   });
   // Kurz gesperrt, damit ein Doppeltipp nicht gleich die nächste Antwort trifft
@@ -2620,7 +2748,8 @@ function zeichneSchreiben(k) {
              aria-label="Antwort schreiben" placeholder="hier schreiben …">
       <div class="akzente">${tasten.map(t =>
         `<button type="button" class="akzent" data-t="${esc(t)}">${esc(t)}</button>`).join('')}</div>
-      <button type="submit" class="pruefen-btn" id="pruefen-btn">Prüfen</button>
+      <button type="submit" class="pruefen-btn" id="pruefen-btn">${istPruefung() ? 'Weiter' : 'Prüfen'}</button>
+      ${istPruefung() ? '<button type="button" class="weiss-nicht" id="weiss-nicht">Weiss ich nicht</button>' : ''}
       <div class="loesung" id="loesung"></div>
     </form>`;
 
@@ -2644,6 +2773,8 @@ function zeichneSchreiben(k) {
     aktuell.beantwortet = true;
     stoppeTimer();
     const ergebnis = bewerteSchreibung(eingabe, k.formen || [k.korrekt]);
+    // Prüfung: nichts zeigen, gleich weiter (die Tastatur bleibt offen)
+    if (istPruefung()) { bewertePruefung(k, ergebnis, eingabe); return; }
     feld.readOnly = true;
     feld.classList.add(ergebnis === 'richtig' ? 'gut' : ergebnis === 'akzent' ? 'fast' : 'schlecht');
     feld.blur();   // Tastatur zu, damit die Rückmeldung sichtbar ist
@@ -2651,6 +2782,17 @@ function zeichneSchreiben(k) {
     if (ergebnis !== 'richtig') zeigeLoesung(eingabe, naechsteForm(eingabe, k.formen || [k.korrekt]));
     bewerte(k, ergebnis, feld);
   });
+
+  if (istPruefung()) {
+    document.getElementById('weiss-nicht').addEventListener('click', () => {
+      if (aktuell.beantwortet) return;
+      aktuell.beantwortet = true;
+      bewertePruefung(k, 'falsch', '');
+    });
+    // Gleich fokussieren, solange der Tipp auf «Weiter» noch gilt –
+    // so bleibt die Tastatur von Wort zu Wort offen
+    feld.focus({ preventScroll: true });
+  }
 
   // Fokus nur, wenn die Frage durch Antippen kam – sonst öffnet iOS die Tastatur ohnehin nicht
   setTimeout(() => feld.focus({ preventScroll: true }), 50);
@@ -2675,7 +2817,44 @@ function naechsteFrage() {
   zeichneFrage();
 }
 
+// ════════════════════════════════════════════════════════════
+//  PRÜFUNG
+//  Jede Antwort zählt wie beim Üben (Lernstand, Sterne, «Meine Fehler»,
+//  Wochenziel) – nur sieht sie erst am Schluss, was richtig war.
+// ════════════════════════════════════════════════════════════
+function waehleInPruefung(btn, gewaehlt, k) {
+  if (aktuell.beantwortet) return;
+  aktuell.beantwortet = true;
+  document.querySelectorAll('#answers .ans-btn').forEach(b => { b.disabled = true; });
+  btn.classList.add('gewaehlt');   // nur «gewählt», nicht richtig oder falsch
+  bewertePruefung(k, gewaehlt === k.korrekt ? 'richtig' : 'falsch', gewaehlt);
+}
+
+// ergebnis: 'richtig' | 'falsch' | 'akzent'
+function bewertePruefung(k, ergebnis, antwort) {
+  stoppeTimer();
+  const richtig = ergebnis === 'richtig';
+  aktuell.antworten[aktuell.index] = { e: ergebnis, a: antwort };
+  if (richtig) aktuell.score++;
+  // Wie beim Üben: nur ganz Falsches kommt in «Meine Fehler»
+  if (ergebnis === 'falsch') merkeFehler(k);
+  if (zaehleAntwort()) aktuell.tagNeu = true;
+  if (richtig) {
+    merkeErfolg(k);
+    aktuell.neueSterne.push(...aktualisiereSterne().map(x => ({ gruppe: gruppenId(x.g), etappe: x.etappe.id, krone: x.krone })));
+  }
+  const lern = lerne(k, ergebnis === 'akzent' ? 'akzent' : richtig);
+  if (lern && lern.nachher > lern.vorher) aktuell.aufstiege++;
+  merkeLaufend(aktuell.index + 1);
+
+  // Geschriebenes gleich weiter, damit die Tastatur offen bleibt;
+  // bei der Auswahl kurz zeigen, was gewählt ist
+  if (k.richtung === 'schreiben') naechsteFrage();
+  else weiterTimer = setTimeout(naechsteFrage, 250);
+}
+
 function zeigeErgebnis() {
+  if (istPruefung()) { zeigePruefungErgebnis(); return; }
   const gesamt = aktuell.karten.length;
   const pct = gesamt ? Math.round((aktuell.score / gesamt) * 100) : 0;
 
@@ -2690,34 +2869,12 @@ function zeigeErgebnis() {
   aktuell.neueSterne.push(...aktualisiereSterne().map(x => ({ gruppe: gruppenId(x.g), etappe: x.etappe.id, krone: x.krone })));
   speichere();
 
-  // Neue Sterne dieser Runde, pro Unité zusammengefasst
-  const sternZeilen = [];
-  const kronen = [];
-  [...new Set(aktuell.neueSterne.map(x => x.gruppe))].forEach(gid => {
-    const g = QUIZ_DATEN.gruppen.find(x => gruppenId(x) === gid);
-    if (!g) return;
-    const name = g.titel.split(' · ').slice(1).join(' · ') || g.titel;
-    const eigene = aktuell.neueSterne.filter(x => x.gruppe === gid);
-    const namen = eigene.map(x => (ETAPPEN.find(e => e.id === x.etappe) || {}).name).filter(Boolean);
-    sternZeilen.push(`⭐ ${namen.length === 1 ? 'Neuer Stern' : namen.length + ' neue Sterne'} in ${name}: ${namen.join(', ')}`);
-    if (eigene.some(x => x.krone)) kronen.push(name);
-  });
-
+  const { sternZeilen, kronen } = sternMeldungen();
   const auf = aktuell.aufstiege;
   const istHeute = aktuell.deck.typ === 'heute';
   const rest = istHeute ? anzahlWoerter(aktuell.deck) : 0;
-  // Hat diese Runde den Tag zum Übungstag gemacht?
-  const woche = wocheStand();
-  const tagZeile = !aktuell.tagNeu ? ''
-    : woche.tage === WOCHEN_ZIEL ? `🏆 Wochenziel erreicht: ${WOCHEN_ZIEL} Tage geübt!`
-    : woche.tage < WOCHEN_ZIEL ? `${rauten(woche.tage, WOCHEN_ZIEL)} Übungstag ${woche.tage} von ${WOCHEN_ZIEL} diese Woche`
-    : `✦ ${woche.tage}. Übungstag diese Woche`;
-
-  let anim = '', text = '', sterne = '';
-  if (pct === 100)     { text = 'Meisterhaft gezaubert!'; sterne = '✦ ✦ ✦'; konfetti(); tonFanfare(); }
-  else if (pct >= 70)  { text = 'Stark gezaubert!'; sterne = '✦ ✦'; anim = baueZauberstab(); stoppeCanvas(); tonSonne(); }
-  else if (pct >= 40)  { text = 'Die Kerze brennt noch – weiter!'; sterne = '✦'; anim = baueKerze(); stoppeCanvas(); tonRegenbogen(); }
-  else                 { text = 'Der Zauber will noch geübt sein.'; anim = baueNebel(); stoppeCanvas(); tonRegen(); }
+  const tagZeile = tagZeileText();
+  const { anim, text, sterne } = ergebnisFeier(pct);
 
   document.getElementById('quiz-area').innerHTML = `
     <div class="result-screen">
@@ -2733,6 +2890,117 @@ function zeigeErgebnis() {
       <p>${pct}% richtig beantwortet</p>
       <div class="result-btns">
         ${istHeute && !rest ? '' : `<button class="restart-btn" onclick="starteRunde()">🔄 ${istHeute ? 'Weiter üben' : 'Nochmal üben'}</button>`}
+        <button class="menu-btn" onclick="zumMenu()">← Zur Übersicht</button>
+      </div>
+    </div>`;
+  if (kronen.length) setTimeout(() => zeigeKrone(kronen[0]), 600);
+}
+
+// Neue Sterne dieser Runde, pro Unité zusammengefasst
+function sternMeldungen() {
+  const sternZeilen = [];
+  const kronen = [];
+  [...new Set(aktuell.neueSterne.map(x => x.gruppe))].forEach(gid => {
+    const g = QUIZ_DATEN.gruppen.find(x => gruppenId(x) === gid);
+    if (!g) return;
+    const name = g.titel.split(' · ').slice(1).join(' · ') || g.titel;
+    const eigene = aktuell.neueSterne.filter(x => x.gruppe === gid);
+    const namen = eigene.map(x => (ETAPPEN.find(e => e.id === x.etappe) || {}).name).filter(Boolean);
+    sternZeilen.push(`⭐ ${namen.length === 1 ? 'Neuer Stern' : namen.length + ' neue Sterne'} in ${name}: ${namen.join(', ')}`);
+    if (eigene.some(x => x.krone)) kronen.push(name);
+  });
+  return { sternZeilen, kronen };
+}
+
+// Hat diese Runde den Tag zum Übungstag gemacht?
+function tagZeileText() {
+  const woche = wocheStand();
+  return !aktuell.tagNeu ? ''
+    : woche.tage === WOCHEN_ZIEL ? `🏆 Wochenziel erreicht: ${WOCHEN_ZIEL} Tage geübt!`
+    : woche.tage < WOCHEN_ZIEL ? `${rauten(woche.tage, WOCHEN_ZIEL)} Übungstag ${woche.tage} von ${WOCHEN_ZIEL} diese Woche`
+    : `✦ ${woche.tage}. Übungstag diese Woche`;
+}
+
+// Animation, Ton und Spruch je nach Resultat
+function ergebnisFeier(pct) {
+  let anim = '', text = '', sterne = '';
+  if (pct === 100)     { text = 'Meisterhaft gezaubert!'; sterne = '✦ ✦ ✦'; konfetti(); tonFanfare(); }
+  else if (pct >= 70)  { text = 'Stark gezaubert!'; sterne = '✦ ✦'; anim = baueZauberstab(); stoppeCanvas(); tonSonne(); }
+  else if (pct >= 40)  { text = 'Die Kerze brennt noch – weiter!'; sterne = '✦'; anim = baueKerze(); stoppeCanvas(); tonRegenbogen(); }
+  else                 { text = 'Der Zauber will noch geübt sein.'; anim = baueNebel(); stoppeCanvas(); tonRegen(); }
+  return { anim, text, sterne };
+}
+
+// Ende der Prüfung: Resultat in Prozent und alle Fehler mit Lösung
+function zeigePruefungErgebnis() {
+  const deck = aktuell.deck;
+  const karten = aktuell.karten;
+  const n = karten.length;
+  const ant = karten.map((k, i) => aktuell.antworten[i] || { e: 'falsch', a: '' });
+  const richtig = ant.filter(a => a.e === 'richtig').length;
+  const akzent = ant.filter(a => a.e === 'akzent').length;
+  // Nur Akzente falsch zählt halb
+  const pct = n ? Math.round((richtig + akzent / 2) / n * 100) : 0;
+
+  const stand = daten.decks[deck.id] || { geuebt: 0 };
+  const rekordVorher = stand.beste;
+  stand.geuebt++;
+  stand.letzteQuote = pct;
+  stand.beste = Math.max(pct, rekordVorher || 0);
+  stand.zuletzt = Date.now();
+  daten.decks[deck.id] = stand;
+  daten.pruefungLauf = null;   // Prüfung ist zu Ende
+
+  // Punkte erst jetzt, damit während der Prüfung nichts verrät, was richtig war
+  if (richtig) {
+    const vorher = niveauVon(deck.sprache).idx;
+    daten.xp[deck.sprache] = (daten.xp[deck.sprache] || 0) + richtig * 10;
+    const nachher = niveauVon(deck.sprache);
+    zeigeNiveau(deck.sprache);
+    if (nachher.idx > vorher) zeigeLevelUp(nachher.name);
+  }
+  speichere();
+
+  const { sternZeilen, kronen } = sternMeldungen();
+  const tagZeile = tagZeileText();
+  const auf = aktuell.aufstiege;
+  const { anim, text, sterne } = ergebnisFeier(pct);
+  const rekord = rekordVorher != null && pct > rekordVorher;
+
+  const fehler = karten.map((k, i) => ({ k, a: ant[i] })).filter(x => x.a.e !== 'richtig');
+  const zeile = ({ k, a }) => {
+    const formen = k.formen || [k.korrekt];
+    const loesung = k.richtung === 'schreiben' && a.a
+      ? loesungMarkiert(a.a, naechsteForm(a.a, formen))
+      : esc(k.korrekt);
+    return `
+      <li class="pf pf-${a.e}">
+        <span class="pf-de">${esc(k.frage)}</span>
+        <span class="pf-du">${a.a ? `<s>${esc(a.a)}</s>` : '<i>keine Antwort</i>'}${a.e === 'akzent' ? ' <em>nur Akzente</em>' : ''}</span>
+        <span class="pf-ok">${loesung}</span>
+      </li>`;
+  };
+
+  document.getElementById('quiz-area').innerHTML = `
+    <div class="result-screen pruefung-ergebnis">
+      ${anim}
+      <div class="stars">${sterne}</div>
+      <h2>${text}</h2>
+      <div class="result-score">${pct} %</div>
+      <p class="p-zahlen">${richtig} von ${n} richtig${akzent ? ` · ${akzent} × nur Akzente falsch (zählt halb)` : ''}</p>
+      ${rekord ? `<p class="aufstieg">🏆 Neuer Rekord! Bisher ${rekordVorher} %</p>` : ''}
+      ${auf ? `<p class="aufstieg">⬆ ${auf === 1 ? '1 Wort ist' : `${auf} Wörter sind`} eine Stufe aufgestiegen</p>` : ''}
+      ${tagZeile ? `<p class="aufstieg">${tagZeile}</p>` : ''}
+      ${sternZeilen.map(z => `<p class="aufstieg stern-zeile">${z}</p>`).join('')}
+      ${kronen.map(name => `<p class="aufstieg krone-zeile">👑 Krone für ${name}!</p>`).join('')}
+      ${fehler.length ? `
+      <div class="p-fehler">
+        <h3>Das schauen wir noch an (${fehler.length})</h3>
+        <ul>${fehler.map(zeile).join('')}</ul>
+        ${fehler.some(x => x.a.e === 'falsch') ? '<p class="p-hinweis">Die falschen Wörter sind jetzt auch in «Meine Fehler».</p>' : ''}
+      </div>` : ''}
+      <div class="result-btns">
+        <button class="restart-btn" onclick="starteRunde()">🔄 Neue Prüfung</button>
         <button class="menu-btn" onclick="zumMenu()">← Zur Übersicht</button>
       </div>
     </div>`;
