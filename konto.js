@@ -10,9 +10,10 @@
 //    gewählte Profil, das Kind landet also direkt bei sich.
 //  - Jedes Profil hat seinen eigenen lokalen Speicher
 //    (franz_quiz_v1__<profil-id>) und wird mit der Datenbank
-//    abgeglichen. Bei zwei Ständen gewinnt der jüngere.
+//    abgeglichen. Übt das Kind auf mehreren Geräten, werden die
+//    Stände zusammengeführt (Regeln in abgleich.js).
 //  - Ohne Netz wird lokal weitergespeichert und später
-//    hochgeladen.
+//    abgeglichen.
 // ════════════════════════════════════════════════════════════
 // Supabase zeigt im Dashboard teils die API-Adresse mit «/rest/v1/» an.
 // Die Bibliothek braucht die reine Projekt-Adresse – beides soll gehen.
@@ -79,16 +80,26 @@ const Konto = (() => {
 
   /* ---------------- Supabase laden ---------------- */
 
-  function ladeBibliothek() {
-    if (window.supabase && window.supabase.createClient) return Promise.resolve(true);
+  function ladeSkript(src, geladen) {
+    if (geladen()) return Promise.resolve(true);
     return new Promise(resolve => {
       const s = document.createElement('script');
-      s.src = SUPABASE_JS;
-      s.onload = () => resolve(!!(window.supabase && window.supabase.createClient));
+      s.src = src;
+      s.onload = () => resolve(geladen());
       s.onerror = () => resolve(false);
       document.head.appendChild(s);
       setTimeout(() => resolve(false), 10000);
     });
+  }
+
+  function ladeBibliothek() {
+    return ladeSkript(SUPABASE_JS, () => !!(window.supabase && window.supabase.createClient));
+  }
+
+  // abgleich.js lädt index.html. Hat ein Gerät noch eine ältere index.html
+  // im Cache, fehlt die Datei – dann hier nachladen.
+  function ladeAbgleich() {
+    return ladeSkript('abgleich.js', () => !!window.Abgleich);
   }
 
   async function start() {
@@ -96,6 +107,7 @@ const Konto = (() => {
     renderLeiste();
 
     if (!(await ladeBibliothek())) { status = 'offline'; renderLeiste(); return; }
+    await ladeAbgleich();
 
     client = window.supabase.createClient(projektUrl(cfg.supabaseUrl), cfg.supabaseAnonKey);
     client.auth.onAuthStateChange((ev, s) => {
@@ -138,9 +150,32 @@ const Konto = (() => {
 
   /* ---------------- Abgleich ---------------- */
 
+  // Übt ein Kind auf mehreren Geräten, werden die Stände zusammengeführt
+  // (abgleich.js). Dazu merkt sich jedes Gerät pro Profil die «Basis»:
+  // den letzten Stand, der sicher auch in der Datenbank liegt.
+  // Ablauf: Stand der Datenbank holen → zusammenführen → hochladen.
+  // Hochgeladen wird nur, wenn in der Datenbank noch derselbe Stand liegt
+  // (gleiches updated_at). Hat ein anderes Gerät inzwischen etwas
+  // hochgeladen, wird neu geholt und nochmals zusammengeführt.
+
   let timer = null;
-  let ausstehend = false;
+  let ausstehend = false;      // Änderungen hier, die noch nicht in der Datenbank sind
   let kette = Promise.resolve();
+
+  function basisSchluessel(id) { return `${GAST}__${id}__basis`; }
+
+  function merkeBasis(id, stand) {
+    try { localStorage.setItem(basisSchluessel(id), JSON.stringify(stand)); } catch (e) {}
+  }
+
+  // Werte aus index.html, die die Regeln brauchen (Wochenziel, Fehlerliste)
+  function optionen() {
+    return {
+      wochenStart: typeof wochenStart === 'function' ? wochenStart() : null,
+      sprachen: typeof SPRACHEN !== 'undefined' ? SPRACHEN : ['fr', 'en'],
+      maxFehler: typeof MAX_FEHLER !== 'undefined' ? MAX_FEHLER : 80,
+    };
+  }
 
   // Wird von speichere() nach jeder Änderung aufgerufen
   function geaendert() {
@@ -150,60 +185,88 @@ const Konto = (() => {
     timer = setTimeout(hochladenJetzt, 2500);
   }
 
-  // Uploads nacheinander, damit ein älterer Stand nie einen neueren überholt
-  function hochladenJetzt() {
+  // Eigene Änderungen abgleichen – nur wenn es welche gibt
+  function hochladenJetzt() { return abgleichen(true); }
+
+  // Auch ohne eigene Änderungen nachschauen, was andere Geräte geübt haben
+  function synchronisiere() { return abgleichen(false); }
+
+  // Immer nur ein Abgleich aufs Mal, die nächsten warten in der Kette
+  function abgleichen(nurEigene) {
     clearTimeout(timer);
     timer = null;
-    const lauf = kette.then(async () => {
-      if (!client || !session || !profil || !ausstehend) return;
-      const id = profil.id;
-      const stand = JSON.parse(JSON.stringify(daten));
-      ausstehend = false;
-      try {
-        const { error } = await client.from('progress')
-          .upsert({ profile_id: id, data: stand, updated_at: new Date().toISOString() });
-        if (error) throw error;
-        status = 'ok';
-      } catch (e) {
-        console.error(e);
-        ausstehend = true;
-        status = istAuthFehler(e) ? 'abgemeldet' : 'offline';
-      }
-      renderLeiste();
-    });
+    const lauf = kette.then(() => abgleichLauf(nurEigene));
     kette = lauf.catch(() => {});
     return lauf;
   }
 
-  async function synchronisiere() {
+  async function abgleichLauf(nurEigene) {
     if (!client || !session || !profil) return;
-    await hochladenJetzt();   // eigene Änderungen zuerst los werden
+    if (nurEigene && !ausstehend) return;
+    if (!window.Abgleich) { status = 'offline'; renderLeiste(); return; }
     const id = profil.id;
-    status = 'laedt';
-    renderLeiste();
+    if (!nurEigene) { status = 'laedt'; renderLeiste(); }
     try {
-      const { data, error } = await client.from('progress')
-        .select('data').eq('profile_id', id).maybeSingle();
-      if (error) throw error;
-      if (!profil || profil.id !== id) return;   // inzwischen gewechselt
+      for (let versuch = 1; versuch <= 3; versuch++) {
+        const { data: zeile, error } = await client.from('progress')
+          .select('data, updated_at').eq('profile_id', id).maybeSingle();
+        if (error) throw error;
+        if (!profil || profil.id !== id) return;   // inzwischen gewechselt
 
-      const server = data ? data.data : null;
-      const lokal = leseLokal(schluessel());
-      const tServer = (server && server.geaendert) || 0;
-      const tLokal = (lokal && lokal.geaendert) || 0;
+        const lokal = JSON.parse(JSON.stringify(daten));
+        ausstehend = false;
+        const zusammen = zeile
+          ? Abgleich.zusammenfuehren(leseLokal(basisSchluessel(id)), lokal, zeile.data, optionen())
+          : lokal;
 
-      if (server && (!lokal || tServer > tLokal)) {
-        uebernehmeDaten(server);
-      } else if (lokal && tLokal > tServer) {
-        ausstehend = true;
-        await hochladenJetzt();
+        if (!zeile || !Abgleich.gleich(zusammen, zeile.data)) {
+          const neu = { data: zusammen, updated_at: new Date().toISOString() };
+          const { data: ok, error: e2 } = zeile
+            ? await client.from('progress').update(neu)
+                .eq('profile_id', id).eq('updated_at', zeile.updated_at).select('profile_id')
+            : await client.from('progress').insert({ profile_id: id, ...neu }).select('profile_id');
+          if (e2 && !istKonflikt(e2)) throw e2;
+          // Ein anderes Gerät war schneller: neu holen und nochmals zusammenführen
+          if (e2 || !ok || !ok.length) { ausstehend = true; continue; }
+        }
+
+        merkeBasis(id, zusammen);
+        uebernehmeZusammen(id, lokal, zusammen);
+        status = 'ok';
+        return;
       }
-      if (status === 'laedt') status = 'ok';
+      // Dreimal überholt: etwas später nochmals
+      ausstehend = true;
+      timer = setTimeout(hochladenJetzt, 2500);
     } catch (e) {
       console.error(e);
+      ausstehend = true;
       status = istAuthFehler(e) ? 'abgemeldet' : 'offline';
+    } finally {
+      renderLeiste();
     }
-    renderLeiste();
+  }
+
+  // Den zusammengeführten Stand hier übernehmen. Was während des Abgleichs
+  // noch geübt wurde, kommt obendrauf und geht beim nächsten Mal hoch.
+  function uebernehmeZusammen(id, lokal, zusammen) {
+    if (profil && profil.id === id) {
+      const jetzt = JSON.parse(JSON.stringify(daten));
+      const neu = Abgleich.zusammenfuehren(lokal, jetzt, zusammen, optionen());
+      if (!Abgleich.gleich(neu, zusammen)) ausstehend = true;
+      if (!Abgleich.gleich(neu, jetzt)) uebernehmeDaten(neu);
+      return;
+    }
+    // Profil inzwischen gewechselt: dessen Speicher auf diesem Gerät nachführen
+    const key = `${GAST}__${id}`;
+    const gespeichert = leseLokal(key);
+    if (!gespeichert) return;
+    const neu = Abgleich.zusammenfuehren(lokal, gespeichert, zusammen, optionen());
+    try { localStorage.setItem(key, JSON.stringify(neu)); } catch (e) {}
+  }
+
+  function istKonflikt(e) {
+    return String(e && e.code) === '23505' || /duplicate key/i.test(String(e && e.message));
   }
 
   function istAuthFehler(e) {
@@ -258,7 +321,10 @@ const Konto = (() => {
     if (!confirm(`Profil «${p.name}» mit dem ganzen Fortschritt löschen?`)) return;
     const { error } = await client.from('profiles').delete().eq('id', p.id);
     if (error) throw error;
-    try { localStorage.removeItem(`${GAST}__${p.id}`); } catch (e) {}
+    try {
+      localStorage.removeItem(`${GAST}__${p.id}`);
+      localStorage.removeItem(basisSchluessel(p.id));
+    } catch (e) {}
     if (profil && profil.id === p.id) wechsleZuGast();
     await ladeProfile();
     renderKonto();
