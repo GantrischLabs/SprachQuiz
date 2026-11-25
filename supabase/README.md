@@ -12,7 +12,7 @@ Solange `config.js` leer ist, läuft das Quiz genau wie bisher. Der Fortschritt 
 - Ohne Internet wird lokal weitergespeichert und später automatisch hochgeladen.
 - Beim ersten Profil kann der bisherige Fortschritt auf dem Gerät übernommen werden. Das Häkchen ist vorgewählt.
 - Jede Familie sieht nur ihre eigenen Profile. Das ist in der Datenbank abgesichert (Row Level Security).
-- **Grenze:** Übt dasselbe Kind gleichzeitig auf zwei Geräten, gewinnt der zuletzt gespeicherte Stand.
+- Übt dasselbe Kind abwechselnd auf mehreren Geräten (auch offline oder mitten in einer Runde), wird der Fortschritt zusammengeführt: XP und Übungstage zählen zusammen, Sterne bleiben, und wurde dasselbe Wort auf beiden Geräten geübt, gilt die tiefere Lernstufe. Die Regeln stehen in [`abgleich.js`](../abgleich.js).
 
 ## Einrichtung (einmalig, ca. 15 Minuten)
 

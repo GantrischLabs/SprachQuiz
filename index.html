@@ -1543,6 +1543,7 @@
 </div>
 
 <script src="config.js"></script>
+<script src="abgleich.js"></script>
 <script src="konto.js"></script>
 <script src="vokabeln.js"></script>
 <script>
@@ -1552,7 +1553,7 @@
 //  App den Stand der geladenen Seite: GitHub Pages liefert ihn als
 //  «Last-Modified» mit, er ändert sich also bei jeder Veröffentlichung.
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = 30;
+const APP_VERSION = 31;
 
 function versionText() {
   const stand = new Date(document.lastModified);
@@ -1619,7 +1620,7 @@ function ladeDaten() {
 }
 
 function speichere() {
-  // Zeitstempel entscheidet beim Abgleich zwischen Geräten, welcher Stand neuer ist
+  // Zeitstempel: entscheidet beim Abgleich zwischen Geräten, wenn beide dasselbe geändert haben
   daten.geaendert = Date.now();
   try { localStorage.setItem(speicherSchluessel(), JSON.stringify(daten)); } catch (e) {}
   if (window.Konto) Konto.geaendert();
@@ -1627,8 +1628,8 @@ function speichere() {
 
 const daten = ladeDaten();
 
-// Ersetzt den ganzen Stand, z.B. beim Profilwechsel oder wenn ein
-// anderes Gerät neuer ist. Der Zeitstempel bleibt dabei unverändert.
+// Ersetzt den ganzen Stand, z.B. beim Profilwechsel oder nach dem
+// Abgleich mit anderen Geräten. Der Zeitstempel bleibt dabei unverändert.
 function uebernehmeDaten(neu) {
   const d = Object.assign(leereDaten(), neu || {});
   d.xp = Object.assign({ fr: 0, en: 0 }, (neu || {}).xp);
