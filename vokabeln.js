@@ -14,8 +14,8 @@
 //  UND schriftlich zu lernen». Diese Wörter muss sie fehlerfrei schreiben
 //  können; alle anderen nur verstehen und sagen. Diese Wörter werden in
 //  «Heute fällig» ab Stufe 2 geordnet und ab Stufe 3 geschrieben.
-//  Gepflegt für Französisch Unité 1 und 2 sowie Englisch Pre-Unit und
-//  Unit 1 Teil 1.
+//  Gepflegt für Französisch Unité 1 und 2 sowie Englisch Pre-Unit,
+//  Unit 1 Teil 1 und Unit 2 Teil 1.
 //
 //  Der Lernstand eines Wortes (Stufe, nächste Wiederholung) hängt an
 //  der Deck-id und am Feld "fr". Wird "fr" korrigiert, beginnt dieses
@@ -302,6 +302,27 @@ const EN_U1_TEIL2 = [
   { fr: "In the evening", de: "am Abend" },
 ];
 
+// ── Englisch · Unit 2, Teil 1 (New World 1, Coursebook S. 34, schriftlich / mündlich) ──
+const EN_U2_TEIL1 = [
+  { fr: "foot", de: "der Fuss", schreiben: true },
+  { fr: "leg", de: "das Bein", schreiben: true },
+  { fr: "shoulder", de: "die Schulter", schreiben: true },
+  { fr: "toe", de: "der Zeh", schreiben: true },
+  { fr: "eye", de: "das Auge", schreiben: true },
+  { fr: "ear", de: "das Ohr", schreiben: true },
+  { fr: "mouth", de: "der Mund", schreiben: true },
+  { fr: "tooth", de: "der Zahn", schreiben: true },
+  { fr: "bone", de: "der Knochen", schreiben: true },
+  { fr: "body", de: "der Körper", schreiben: true },
+  // auf dem Blatt sind die Spalten bei dieser Zeile vertauscht
+  { fr: "Stand (up)!", de: "Stehe (auf)!" },
+  { fr: "Lift your knee high!", de: "Hebe dein Knie!" },
+  { fr: "Shake your head!", de: "Schüttle deinen Kopf!" },
+  { fr: "Swing your arm!", de: "Schwing deinen Arm!" },
+  { fr: "jump", de: "springen", schreiben: true },
+  { fr: "run", de: "rennen", schreiben: true },
+];
+
 // ════════════════════════════════════════════════════════════
 //  DIS DONC ! UNITÉ 1 · Klassenwortschatz (lachsfarben), 5. Klasse
 //  Wochentage und Tätigkeiten
@@ -463,7 +484,7 @@ const QUIZ_DATEN = {
     {
       id: 'en5-u1',
       titel: 'Englisch · Unit 1',
-      sprache: 'en', farbe: '#1d3a6e', hell: '#d8e0ee', offen: true,
+      sprache: 'en', farbe: '#1d3a6e', hell: '#d8e0ee', offen: false,
       decks: [
         { id: 'en5-preunit', icon: '📙', titel: 'Pre-Unit',
           typ: 'vokabeln', woerter: EN_PRE_UNIT },
@@ -471,6 +492,15 @@ const QUIZ_DATEN = {
           typ: 'vokabeln', woerter: EN_U1_TEIL1 },
         { id: 'en5-u1-teil2', icon: '📕', titel: 'Teil 2',
           typ: 'vokabeln', woerter: EN_U1_TEIL2 },
+      ],
+    },
+    {
+      id: 'en5-u2',
+      titel: 'Englisch · Unit 2',
+      sprache: 'en', farbe: '#1d3a6e', hell: '#d8e0ee', offen: true,
+      decks: [
+        { id: 'en5-u2-teil1', icon: '🦴', titel: 'Teil 1 · Körper',
+          typ: 'vokabeln', woerter: EN_U2_TEIL1 },
       ],
     },
     {
