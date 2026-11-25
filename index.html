@@ -172,7 +172,10 @@
     line-height: 1.3;
     color: #b9a37a;
   }
+  .woche .w-sprachen { display: inline-flex; gap: 12px; white-space: nowrap; }
+  .woche .w-sp { display: inline-flex; align-items: baseline; gap: 4px; }
   .woche .w-rauten { font-size: 0.8rem; letter-spacing: 3px; color: var(--gold); }
+  .woche .w-sp.fertig .w-rauten { color: var(--gold-hell); text-shadow: 0 0 6px rgba(233,207,122,0.6); }
   .woche .w-txt { white-space: nowrap; }
   .woche b { color: var(--gold-hell); font-weight: 600; }
   /* «heute noch 4 Fragen» als zweite, leisere Zeile */
@@ -1549,7 +1552,7 @@
 //  App den Stand der geladenen Seite: GitHub Pages liefert ihn als
 //  «Last-Modified» mit, er ändert sich also bei jeder Veröffentlichung.
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = 28;
+const APP_VERSION = 30;
 
 function versionText() {
   const stand = new Date(document.lastModified);
@@ -1893,33 +1896,54 @@ function heuteEintraege(sprache) {
 
 // ════════════════════════════════════════════════════════════
 //  WOCHENZIEL
-//  Drei Übungstage pro Woche genügen – egal in welcher Sprache.
-//  Ein Tag zählt, sobald TAG_ZIEL Fragen beantwortet sind.
+//  Pro Sprache drei Übungstage pro Woche (dürfen dieselben Tage sein).
+//  Ein Tag zählt für eine Sprache, sobald darin TAG_ZIEL Fragen
+//  beantwortet sind. daten.tageJe[sprache][tag] = beantwortete Fragen
 // ════════════════════════════════════════════════════════════
 const WOCHEN_ZIEL = 3;
 const TAG_ZIEL = 10;
 
 // Montag = Tag 0 der Woche
-function wocheStand() {
-  const heute = heuteTag();
-  const start = heute - ((new Date().getDay() + 6) % 7);
-  let tage = 0;
-  for (let t = start; t < start + 7; t++) {
-    if ((daten.tage[t] || 0) >= TAG_ZIEL) tage++;
+function wochenStart() { return heuteTag() - ((new Date().getDay() + 6) % 7); }
+
+// Die Tage einer Sprache. Umstellung vom gemeinsamen Zähler (daten.tage):
+// die Übungstage der laufenden Woche gelten einmalig für beide Sprachen.
+function tageJe(sprache) {
+  if (!daten.tageJe) {
+    daten.tageJe = {};
+    const start = wochenStart();
+    Object.entries(daten.tage || {}).forEach(([t, n]) => {
+      if (Number(t) < start) return;
+      SPRACHEN.forEach(sp => { (daten.tageJe[sp] = daten.tageJe[sp] || {})[t] = n; });
+    });
   }
-  return { tage, heuteAntworten: daten.tage[heute] || 0 };
+  return daten.tageJe[sprache] = daten.tageJe[sprache] || {};
 }
 
-// Zählt eine beantwortete Frage. Gibt true zurück, wenn der Tag
-// genau damit zum Übungstag geworden ist.
-function zaehleAntwort() {
-  const heute = heuteTag();
-  const n = (daten.tage[heute] || 0) + 1;
-  daten.tage[heute] = n;
-  // Alte Tage wegräumen, damit der gespeicherte Stand klein bleibt
-  Object.keys(daten.tage).forEach(t => { if (Number(t) < heute - 60) delete daten.tage[t]; });
-  return n === TAG_ZIEL;
+// { je: { fr: { tage, heute }, en: … }, erreicht } – erreicht, wenn alle Sprachen am Ziel sind
+function wocheStand() {
+  const heute = heuteTag(), start = wochenStart();
+  const je = {};
+  SPRACHEN.forEach(sp => {
+    const z = tageJe(sp);
+    let tage = 0;
+    for (let t = start; t < start + 7; t++) if ((z[t] || 0) >= TAG_ZIEL) tage++;
+    je[sp] = { tage, heute: z[heute] || 0 };
+  });
+  return { je, erreicht: SPRACHEN.every(sp => je[sp].tage >= WOCHEN_ZIEL) };
 }
+
+// Zählt eine beantwortete Frage für ihre Sprache. Gibt true zurück, wenn
+// der Tag genau damit für diese Sprache zum Übungstag geworden ist.
+function zaehleAntwort(sprache) {
+  const z = tageJe(SPRACHEN.includes(sprache) ? sprache : aktiveSprache());
+  const heute = heuteTag();
+  z[heute] = (z[heute] || 0) + 1;
+  // Alte Tage wegräumen, damit der gespeicherte Stand klein bleibt
+  Object.keys(z).forEach(t => { if (Number(t) < heute - 60) delete z[t]; });
+  return z[heute] === TAG_ZIEL;
+}
+const tageText = n => n === 1 ? '1 Tag' : `${n} Tage`;
 
 function rauten(voll, von) {
   return '◆'.repeat(Math.min(voll, von)) + '◇'.repeat(Math.max(0, von - voll));
@@ -2545,18 +2569,26 @@ function zeigeSprachwahl() {
              aria-pressed="${x === sp}">${SPRACH_FLAGGE[x] || x.toUpperCase()}</button>`).join('');
 }
 
-// Wochenziel: drei Rauten, eine pro Übungstag
+// Wochenziel: pro Sprache drei Rauten, eine pro Übungstag; darunter, was noch fehlt
 function zeigeWoche() {
   const w = wocheStand();
-  const erreicht = w.tage >= WOCHEN_ZIEL;
-  const rest = TAG_ZIEL - w.heuteAntworten;
-  const heute = rest <= 0 ? 'heute ✓'
-    : w.heuteAntworten > 0 ? `heute noch ${rest === 1 ? '1 Frage' : rest + ' Fragen'}` : '';
+  const fehlt = SPRACHEN.filter(sp => w.je[sp].tage < WOCHEN_ZIEL);
+  const txt = w.erreicht ? '<b>Wochenziel erreicht ✨</b>'
+    : fehlt.length === 1 ? `<b>${SPRACH_NAME[fehlt[0]]}</b> noch ${tageText(WOCHEN_ZIEL - w.je[fehlt[0]].tage)}`
+    : 'noch ' + fehlt.map((sp, i) => {
+        const n = WOCHEN_ZIEL - w.je[sp].tage;
+        return `<b>${SPRACH_FLAGGE[sp]} ${i === fehlt.length - 1 ? tageText(n) : n}</b>`;
+      }).join(', ');
+  // Heute in der gewählten Sprache: «heute ✓» oder «heute noch 4 Fragen»
+  const sp = aktiveSprache();
+  const h = (w.je[sp] || { heute: 0 }).heute;
+  const rest = TAG_ZIEL - h;
+  const heute = rest <= 0 ? `heute ${SPRACH_FLAGGE[sp]} ✓`
+    : h > 0 ? `heute ${SPRACH_FLAGGE[sp]} noch ${rest === 1 ? '1 Frage' : rest + ' Fragen'}` : '';
   document.getElementById('woche').innerHTML = `
-    <span class="w-rauten">${rauten(w.tage, WOCHEN_ZIEL)}</span>
-    <span class="w-txt">${erreicht
-      ? `<b>Wochenziel erreicht ✨</b>${w.tage > WOCHEN_ZIEL ? ` ${w.tage} Tage geübt` : ''}`
-      : `<b>${w.tage} von ${WOCHEN_ZIEL} Tagen</b> geübt`}</span>
+    <span class="w-sprachen">${SPRACHEN.map(x => `<span class="w-sp ${w.je[x].tage >= WOCHEN_ZIEL ? 'fertig' : ''}"
+        aria-label="${SPRACH_NAME[x]}: ${w.je[x].tage} von ${WOCHEN_ZIEL} Tagen">${SPRACH_FLAGGE[x]}<span class="w-rauten">${rauten(w.je[x].tage, WOCHEN_ZIEL)}</span></span>`).join('')}</span>
+    <span class="w-txt">${txt}</span>
     ${heute ? `<span class="w-heute">${heute}</span>` : ''}`;
 }
 
@@ -2699,7 +2731,7 @@ function oeffneDeck(id, modus) {
     aktuell.score = l.score;
     aktuell.aufstiege = l.aufstiege || 0;
     aktuell.neueSterne = l.neueSterne || [];
-    aktuell.tagNeu = !!l.tagNeu;
+    aktuell.tagNeu = l.tagNeu === true ? aktiveSprache() : (l.tagNeu || false);
     aktuell.antworten = l.antworten || [];
     aktuell.beantwortet = false;
     aktuell.karten = l.karten;
@@ -2952,7 +2984,7 @@ function bewerte(k, ergebnis, anker) {
     merkeFehler(k);
   }
   // Fürs Wochenziel: jede beantwortete Frage zählt, egal ob richtig
-  if (zaehleAntwort()) aktuell.tagNeu = true;
+  if (zaehleAntwort(k.sprache)) aktuell.tagNeu = k.sprache || aktiveSprache();
 
   // Für die Sterne: was war mit diesem Wort schon einmal richtig?
   if (richtig) {
@@ -3248,7 +3280,7 @@ function bewertePruefung(k, ergebnis, antwort) {
   if (richtig) aktuell.score++;
   // Wie beim Üben: nur ganz Falsches kommt in «Meine Fehler»
   if (ergebnis === 'falsch') merkeFehler(k);
-  if (zaehleAntwort()) aktuell.tagNeu = true;
+  if (zaehleAntwort(k.sprache)) aktuell.tagNeu = k.sprache || aktiveSprache();
   if (richtig) {
     merkeErfolg(k);
     aktuell.neueSterne.push(...aktualisiereSterne().map(x => ({ gruppe: gruppenId(x.g), etappe: x.etappe.id, krone: x.krone })));
@@ -3323,13 +3355,21 @@ function sternMeldungen() {
   return { sternZeilen, kronen };
 }
 
-// Hat diese Runde den Tag zum Übungstag gemacht?
+// Hat diese Runde den Tag (für ihre Sprache) zum Übungstag gemacht?
 function tagZeileText() {
-  const woche = wocheStand();
-  return !aktuell.tagNeu ? ''
-    : woche.tage === WOCHEN_ZIEL ? `🏆 Wochenziel erreicht: ${WOCHEN_ZIEL} Tage geübt!`
-    : woche.tage < WOCHEN_ZIEL ? `${rauten(woche.tage, WOCHEN_ZIEL)} Übungstag ${woche.tage} von ${WOCHEN_ZIEL} diese Woche`
-    : `✦ ${woche.tage}. Übungstag diese Woche`;
+  const sp = aktuell.tagNeu;
+  if (!sp) return '';
+  const w = wocheStand();
+  const tage = (w.je[sp] || { tage: 0 }).tage;
+  const f = SPRACH_FLAGGE[sp] || '';
+  if (tage === WOCHEN_ZIEL && w.erreicht) return `🏆 Wochenziel erreicht: ${SPRACHEN.length === 2 ? 'beide Sprachen' : 'alle Sprachen'} je ${WOCHEN_ZIEL} Tage!`;
+  if (tage === WOCHEN_ZIEL) {
+    const fehlt = SPRACHEN.filter(x => w.je[x].tage < WOCHEN_ZIEL)
+      .map(x => `${SPRACH_FLAGGE[x]} noch ${tageText(WOCHEN_ZIEL - w.je[x].tage)}`);
+    return `${f} ${WOCHEN_ZIEL} von ${WOCHEN_ZIEL} Tagen geschafft – jetzt ${fehlt.join(', ')}`;
+  }
+  if (tage < WOCHEN_ZIEL) return `${f} ${rauten(tage, WOCHEN_ZIEL)} Übungstag ${tage} von ${WOCHEN_ZIEL} diese Woche`;
+  return `${f} ✦ ${tage}. Übungstag diese Woche`;
 }
 
 // Animation, Ton und Spruch je nach Resultat
