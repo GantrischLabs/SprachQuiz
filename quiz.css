@@ -1475,3 +1475,35 @@ body.quiz .woche, body.konto .woche { display: none; }
   75%  { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   100% { opacity: 0; transform: translate(-50%, -50%) scale(0.95); }
 }
+
+/* ════════════════════════════════════════════════════════════
+   TABLET (iPad) UND COMPUTER
+   Ab 700px Breite und 600px Höhe. Handys bleiben genau wie bisher,
+   auch quer gehalten (dort fehlt die Höhe). Was in rem angegeben ist,
+   wächst mit der grösseren Grundschrift mit. Das Menü nutzt die
+   Breite, das Quiz bleibt eine ruhige Spalte in der Mitte.
+   ════════════════════════════════════════════════════════════ */
+@media (min-width: 700px) and (min-height: 600px) {
+  html { font-size: 118.75%; }              /* 19px statt 16px */
+
+  .wrap { max-width: 1100px; padding: 0 28px; }
+  body.quiz .wrap { max-width: 760px; }
+  body.konto .wrap { max-width: 620px; }
+
+  /* Menü: die Listen einer Unité als Kacheln nebeneinander –
+     hochkant 2, quer 3 Spalten */
+  .deck-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+    gap: 12px;
+  }
+  .deck.pruefung { margin-top: 0; }
+  .group { margin-bottom: 22px; }
+  .group.closed { margin-bottom: 0; }
+
+  /* Quiz: mehr Luft und grössere Antwortfelder */
+  .back-btn { width: 48px; height: 48px; }
+  .card { padding: 40px 36px 34px; }
+  .answers { gap: 14px; }
+  .ans-btn { min-height: 68px; }
+}
