@@ -424,8 +424,16 @@ const U2_GRUEN = [
 // ════════════════════════════════════════════════════════════
 //  AUFBAU DES MENÜS
 //  Eine Gruppe pro Unité. Neue Unité = einen Block kopieren und
-//  anpassen; offen: true bestimmt, was beim Start aufgeklappt ist.
-//  id: fest und eindeutig – daran hängen die verdienten Sterne.
+//  unten bei ihrer Sprache anhängen – das Menü zeigt die neueste
+//  Unité der aktuellen Klasse zuoberst und aufgeklappt, die
+//  früheren zugeklappt darunter.
+//  id:      fest und eindeutig – daran hängen die verdienten Sterne
+//  klasse:  Schuljahr der Unité, z.B. 5. Die höchste Klasse einer
+//           Sprache ist die aktuelle; frühere Klassen erscheinen
+//           unter «Frühere Schuljahre» mit je einer eigenen Seite.
+//  bereich: 'grundlagen' – Konjugation, Zahlen usw., unabhängig
+//           vom Schuljahr unter «Grundlagen»
+//           'jetzt' – Meine Fehler, oben bei «Jetzt üben»
 // ════════════════════════════════════════════════════════════
 const FR_FARBE = '#7b1f2b', FR_HELL = '#f0d9d2';
 
@@ -434,7 +442,7 @@ const QUIZ_DATEN = {
     {
       id: 'fr5-u1',
       titel: 'Französisch · Unité 1',
-      sprache: 'fr', farbe: FR_FARBE, hell: FR_HELL, offen: false,
+      sprache: 'fr', farbe: FR_FARBE, hell: FR_HELL, klasse: 5,
       decks: [
         { id: 'fr5-u1-woerter', icon: '📘', titel: 'Klassenwortschatz',
           typ: 'vokabeln', woerter: U1_ROSA },
@@ -447,7 +455,7 @@ const QUIZ_DATEN = {
     {
       id: 'fr5-u2',
       titel: 'Französisch · Unité 2',
-      sprache: 'fr', farbe: FR_FARBE, hell: FR_HELL, offen: true,
+      sprache: 'fr', farbe: FR_FARBE, hell: FR_HELL, klasse: 5,
       decks: [
         { id: 'fr5-u2-woerter', icon: '👪', titel: 'Familie',
           typ: 'vokabeln', woerter: U2_BLASSGELB },
@@ -460,7 +468,7 @@ const QUIZ_DATEN = {
     {
       id: 'fr5-allg',
       titel: 'Französisch · Übergreifend',
-      sprache: 'fr', farbe: FR_FARBE, hell: FR_HELL, offen: false,
+      sprache: 'fr', farbe: FR_FARBE, hell: FR_HELL, bereich: 'grundlagen',
       decks: [
         { id: 'fr5-konjugation', icon: '💜', titel: 'Konjugation · -er-Verben',
           typ: 'konjugation', woerter: baueKonjugation(ER_VERBEN) },
@@ -471,7 +479,7 @@ const QUIZ_DATEN = {
     {
       id: 'fr4',
       titel: 'Französisch · 4. Klasse',
-      sprache: 'fr', farbe: '#1f5136', hell: '#d9e8dd', offen: false,
+      sprache: 'fr', farbe: '#1f5136', hell: '#d9e8dd', klasse: 4,
       decks: [
         { id: 'fr4-wetter8',  icon: '🌸', titel: 'Wetter · Liste 8',
           typ: 'vokabeln', woerter: WETTER_8 },
@@ -484,7 +492,7 @@ const QUIZ_DATEN = {
     {
       id: 'en5-u1',
       titel: 'Englisch · Unit 1',
-      sprache: 'en', farbe: '#1d3a6e', hell: '#d8e0ee', offen: false,
+      sprache: 'en', farbe: '#1d3a6e', hell: '#d8e0ee', klasse: 5,
       decks: [
         { id: 'en5-preunit', icon: '📙', titel: 'Pre-Unit',
           typ: 'vokabeln', woerter: EN_PRE_UNIT },
@@ -497,7 +505,7 @@ const QUIZ_DATEN = {
     {
       id: 'en5-u2',
       titel: 'Englisch · Unit 2',
-      sprache: 'en', farbe: '#1d3a6e', hell: '#d8e0ee', offen: true,
+      sprache: 'en', farbe: '#1d3a6e', hell: '#d8e0ee', klasse: 5,
       decks: [
         { id: 'en5-u2-teil1', icon: '🦴', titel: 'Teil 1 · Körper',
           typ: 'vokabeln', woerter: EN_U2_TEIL1 },
@@ -506,7 +514,7 @@ const QUIZ_DATEN = {
     {
       id: 'wiederholen',
       titel: 'Wiederholen',
-      sprache: null, farbe: '#6b4a17', hell: '#eee0c4', offen: true,
+      sprache: null, farbe: '#6b4a17', hell: '#eee0c4', bereich: 'jetzt',
       decks: [
         { id: 'fehler', icon: '🔁', titel: 'Meine Fehler',
           typ: 'fehler', woerter: [] },

@@ -10,7 +10,7 @@
 //  zeigt die App den Stand der geladenen Seite: GitHub Pages liefert ihn
 //  als «Last-Modified» mit, er ändert sich also bei jeder Veröffentlichung.
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = 33;
+const APP_VERSION = 34;
 
 function versionText() {
   const stand = new Date(document.lastModified);
@@ -976,12 +976,17 @@ function ringVon(deck) {
 function wortZahl(n) { return n === 1 ? '1 Wort' : `${n} Wörter`; }
 
 // Karte «Heute fällig» zuoberst im Menü
+// Hat sie in dieser Sprache schon etwas geübt?
+function begonnenIn(sp) {
+  return Object.values(alleDecks).some(d =>
+    hatLernstand(d) && d.sprache === sp && (daten.decks[d.id] || daten.woerter[d.id]));
+}
+
 function zeigeHeute() {
   const sp = aktiveSprache();
   const H = HEUTE[sp];
   const btn = document.getElementById('heute-btn');
-  const begonnen = Object.values(alleDecks).some(d =>
-    hatLernstand(d) && d.sprache === sp && (daten.decks[d.id] || daten.woerter[d.id]));
+  const begonnen = begonnenIn(sp);
   // Ganz am Anfang gibt es in dieser Sprache noch nichts zu wiederholen
   if (!H || !begonnen) { btn.style.display = 'none'; return; }
   btn.style.display = '';
@@ -1055,16 +1060,35 @@ function vollerTitel(deck) {
   const einheit = deck.gruppe.titel.split(' · ').pop();
   return `${einheit} · ${deck.titel}`;
 }
-function zeigeMenu() {
-  if (window.Konto) Konto.renderLeiste();
-  const sp = aktiveSprache();
-  zeigeWoche();
-  zeigeSprachwahl();
-  document.getElementById('gruppen').innerHTML = QUIZ_DATEN.gruppen.map((g, gi) => {
-    // Nur die gewählte Sprache; Gruppen ohne Sprache (Wiederholen) immer
-    if (g.sprache && g.sprache !== sp) return '';
-    return `
-    <div class="group ${g.offen ? '' : 'closed'}" id="g${gi}">
+// ════════════════════════════════════════════════════════════
+//  AUFBAU DES MENÜS (Felder klasse und bereich: siehe vokabeln.js)
+//  Jetzt üben – Heute fällig, Weiter üben, Meine Fehler
+//  Aktuelle Klasse – neueste Unité zuoberst und offen, frühere zu
+//  Grundlagen – Konjugation, Zahlen usw.
+//  Frühere Schuljahre – je eine Zeile, öffnet eine eigene Seite
+// ════════════════════════════════════════════════════════════
+let menuJahr = null;        // gezeigtes früheres Schuljahr, null = Startseite
+const klappStatus = {};     // in dieser Sitzung auf-/zugeklappt: Gruppen-id → offen
+
+function istUnite(g) { return !!g.sprache && !g.bereich; }
+
+// Die höchste Klasse einer Sprache ist die aktuelle
+function aktuelleKlasse(sp) {
+  const k = QUIZ_DATEN.gruppen.filter(g => istUnite(g) && g.sprache === sp).map(g => g.klasse || 0);
+  return k.length ? Math.max(...k) : 0;
+}
+// Ohne Angabe gehört eine Unité zur aktuellen Klasse
+function klasseVon(g) { return g.klasse || aktuelleKlasse(g.sprache); }
+
+function istOffen(g, standard) {
+  const id = gruppenId(g);
+  return id in klappStatus ? klappStatus[id] : standard;
+}
+
+function gruppeHtml(g, offen) {
+  const gi = QUIZ_DATEN.gruppen.indexOf(g);
+  return `
+    <div class="group ${offen ? '' : 'closed'}" id="g${gi}">
       <button class="group-head" onclick="klappe(${gi})">
         <span class="dot" style="background:${g.farbe}"></span>
         <span class="title">${SPRACHEN.length > 1 && g.sprache ? g.titel.split(' · ').slice(1).join(' · ') || g.titel : g.titel}</span>
@@ -1087,7 +1111,83 @@ function zeigeMenu() {
         }).join('')}
       </div>
     </div>`;
-  }).join('');
+}
+
+// Eine Zeile pro früherem Schuljahr: Anzahl Listen und Sterne zusammengezählt
+function jahrZeile(k, gs) {
+  const listen = gs.reduce((n, g) => n + g.decks.length, 0);
+  const et = gs.filter(hatSterne).flatMap(g => etappenVon(g));
+  const n = et.filter(e => e.verdient).length;
+  const sterne = !et.length ? ''
+    : n === et.length ? '👑'
+    : et.length <= 5 ? '★'.repeat(n) + '☆'.repeat(et.length - n)
+    : `★ ${n} von ${et.length}`;
+  return `
+    <button class="resume jahr" onclick="zeigeJahr(${k})">
+      <span class="emoji">📚</span>
+      <span class="t"><b>${k}. Klasse</b><span>${listen === 1 ? '1 Liste' : listen + ' Listen'}</span></span>
+      ${sterne ? `<span class="jahr-sterne" aria-label="${n} von ${et.length} Sternen">${sterne}</span>` : ''}
+      <span class="go">→</span>
+    </button>`;
+}
+
+// Seite eines früheren Schuljahrs zeigen (k) oder zurück zur Startseite (null)
+function zeigeJahr(k) {
+  menuJahr = k;
+  zeigeMenu();
+  window.scrollTo(0, 0);
+}
+
+// «Meine Fehler» bei «Jetzt üben» – sobald in dieser Sprache geübt wurde
+function zeigeJetztDecks(sp) {
+  const begonnen = begonnenIn(sp);
+  document.getElementById('jetzt-decks').innerHTML = QUIZ_DATEN.gruppen
+    .filter(g => g.bereich === 'jetzt').flatMap(g => g.decks)
+    .map(d => {
+      const n = anzahlWoerter(d);
+      if (!n && !begonnen) return '';
+      return `
+      <button class="resume jetzt-deck" ${n ? `onclick="oeffneDeck('${d.id}')"` : 'disabled'}>
+        <span class="emoji">${d.icon}</span>
+        <span class="t"><b>${d.titel}</b><span>${untertitel(d)}</span></span>
+        ${n ? '<span class="go">→</span>' : ''}
+      </button>`;
+    }).join('');
+}
+
+function zeigeMenu() {
+  if (window.Konto) Konto.renderLeiste();
+  const sp = aktiveSprache();
+  zeigeWoche();
+  zeigeSprachwahl();
+
+  const unites = QUIZ_DATEN.gruppen.filter(g => istUnite(g) && g.sprache === sp);
+  const aktuell = aktuelleKlasse(sp);
+  const frueher = [...new Set(unites.map(klasseVon).filter(k => k < aktuell))].sort((a, b) => b - a);
+  if (menuJahr !== null && !frueher.includes(menuJahr)) menuJahr = null;   // z.B. nach Sprachwechsel
+  document.getElementById('menu').classList.toggle('jahr', menuJahr !== null);
+
+  let html;
+  if (menuJahr !== null) {
+    // Seite eines früheren Schuljahrs: neueste Unité oben. Nur eine Gruppe →
+    // gleich offen, und ihr Titel genügt als Überschrift
+    const gs = unites.filter(g => klasseVon(g) === menuJahr).reverse();
+    html = `
+      <button class="zurueck" onclick="zeigeJahr(null)">← Alle Listen</button>
+      ${gs.length > 1 ? `<div class="abschnitt">${menuJahr}. Klasse</div>` : ''}
+      ${gs.map(g => gruppeHtml(g, istOffen(g, gs.length === 1))).join('')}`;
+  } else {
+    const jetzt = unites.filter(g => klasseVon(g) === aktuell).reverse();
+    const grund = QUIZ_DATEN.gruppen.filter(g => g.bereich === 'grundlagen' && g.sprache === sp);
+    html = (jetzt.length ? `<div class="abschnitt">${aktuell ? aktuell + '. Klasse' : 'Listen'}</div>` : '')
+      + jetzt.map((g, i) => gruppeHtml(g, istOffen(g, i === 0))).join('')
+      + (grund.length ? '<div class="abschnitt">Grundlagen</div>' : '')
+      + grund.map(g => gruppeHtml(g, istOffen(g, false))).join('')
+      + (frueher.length ? '<div class="abschnitt">Frühere Schuljahre</div>' : '')
+      + frueher.map(k => jahrZeile(k, unites.filter(g => klasseVon(g) === k))).join('');
+  }
+  document.getElementById('gruppen').innerHTML = html;
+  zeigeJetztDecks(sp);
 
   zeigeHeute();
 
@@ -1113,6 +1213,9 @@ function zeigeMenu() {
   } else {
     btn.style.display = 'none';
   }
+  const etwasDa = ['heute-btn', 'resume-btn'].some(id => document.getElementById(id).style.display !== 'none')
+    || document.getElementById('jetzt-decks').children.length > 0;
+  document.getElementById('jetzt-titel').style.display = etwasDa ? '' : 'none';
 
   // Fusszeile: was es in dieser Sprache alles gibt
   const decksSp = Object.values(alleDecks).filter(d => d.sprache === sp && d.typ !== 'heute');
@@ -1132,7 +1235,10 @@ function zeigeMenu() {
 }
 
 function klappe(gi) {
-  document.getElementById('g' + gi).classList.toggle('closed');
+  const el = document.getElementById('g' + gi);
+  el.classList.toggle('closed');
+  // Bleibt so, bis die App neu startet – z.B. nach einer Runde zurück im Menü
+  klappStatus[gruppenId(QUIZ_DATEN.gruppen[gi])] = !el.classList.contains('closed');
 }
 
 function zumMenu() {
