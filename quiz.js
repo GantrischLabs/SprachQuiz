@@ -10,7 +10,7 @@
 //  zeigt die App den Stand der geladenen Seite: GitHub Pages liefert ihn
 //  als «Last-Modified» mit, er ändert sich also bei jeder Veröffentlichung.
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = 35;
+const APP_VERSION = 36;
 
 function versionText() {
   const stand = new Date(document.lastModified);

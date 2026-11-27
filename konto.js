@@ -14,6 +14,8 @@
 //    Stände zusammengeführt (Regeln in abgleich.js).
 //  - Ohne Netz wird lokal weitergespeichert und später
 //    abgeglichen.
+//  - Wurde ein Stand in der Datenbank zurückgesetzt (Rollback, siehe
+//    supabase/README.md), übernimmt jedes Gerät ihn unverändert.
 // ════════════════════════════════════════════════════════════
 // Supabase zeigt im Dashboard teils die API-Adresse mit «/rest/v1/» an.
 // Die Bibliothek braucht die reine Projekt-Adresse – beides soll gehen.
@@ -168,6 +170,26 @@ const Konto = (() => {
     try { localStorage.setItem(basisSchluessel(id), JSON.stringify(stand)); } catch (e) {}
   }
 
+  // Rollback-Nummer: steigt, wenn ein Stand in der Datenbank zurückgesetzt wurde
+  // (progress_restore in setup.sql). Ist sie höher als hier bekannt, verwirft
+  // das Gerät seinen Stand, statt ihn wieder hineinzumischen.
+  function rollbackSchluessel(id) { return `${GAST}__${id}__rollback`; }
+  function bekannterRollback(id) {
+    try { return Number(localStorage.getItem(rollbackSchluessel(id))) || 0; } catch (e) { return 0; }
+  }
+  function merkeRollback(id, nr) {
+    try { localStorage.setItem(rollbackSchluessel(id), String(nr)); } catch (e) {}
+  }
+
+  // Stand der Datenbank holen. Läuft auch, solange setup.sql noch ohne
+  // Rollback-Spalte ist (dann gilt Rollback-Nummer 0).
+  async function holeZeile(id) {
+    const frage = spalten => client.from('progress').select(spalten).eq('profile_id', id).maybeSingle();
+    let antwort = await frage('data, updated_at, rollback_no');
+    if (antwort.error && /rollback_no/.test(String(antwort.error.message))) antwort = await frage('data, updated_at');
+    return antwort;
+  }
+
   // Werte aus index.html, die die Regeln brauchen (Wochenziel, Fehlerliste)
   function optionen() {
     return {
@@ -208,10 +230,20 @@ const Konto = (() => {
     if (!nurEigene) { status = 'laedt'; renderLeiste(); }
     try {
       for (let versuch = 1; versuch <= 3; versuch++) {
-        const { data: zeile, error } = await client.from('progress')
-          .select('data, updated_at').eq('profile_id', id).maybeSingle();
+        const { data: zeile, error } = await holeZeile(id);
         if (error) throw error;
         if (!profil || profil.id !== id) return;   // inzwischen gewechselt
+
+        // In der Datenbank zurückgesetzt: diesen Stand übernehmen, wie er ist
+        const rollback = (zeile && zeile.rollback_no) || 0;
+        if (rollback > bekannterRollback(id)) {
+          merkeBasis(id, zeile.data);
+          merkeRollback(id, rollback);
+          ausstehend = false;
+          uebernehmeDaten(zeile.data);
+          status = 'ok';
+          return;
+        }
 
         const lokal = JSON.parse(JSON.stringify(daten));
         ausstehend = false;
@@ -324,6 +356,7 @@ const Konto = (() => {
     try {
       localStorage.removeItem(`${GAST}__${p.id}`);
       localStorage.removeItem(basisSchluessel(p.id));
+      localStorage.removeItem(rollbackSchluessel(p.id));
     } catch (e) {}
     if (profil && profil.id === p.id) wechsleZuGast();
     await ladeProfile();
