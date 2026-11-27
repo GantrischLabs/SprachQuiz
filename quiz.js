@@ -10,7 +10,7 @@
 //  zeigt die App den Stand der geladenen Seite: GitHub Pages liefert ihn
 //  als «Last-Modified» mit, er ändert sich also bei jeder Veröffentlichung.
 // ════════════════════════════════════════════════════════════
-const APP_VERSION = 34;
+const APP_VERSION = 35;
 
 function versionText() {
   const stand = new Date(document.lastModified);
@@ -42,6 +42,7 @@ function leereDaten() {
            woerter: {},
            // Wie viele neue Wörter die Runde «Heute fällig» am Tag schon gebracht hat
            tagesNeu: { tag: 0 },   // { tag, fr: n, en: n }
+          tagesHeute: { tag: 0 }, // { tag, fr: [Wort-Schlüssel], en: […] } – heute in «Heute fällig» geübt
            // Gewählte Sprache im Menü – alle Inhalte und Zähler richten sich danach
            sprache: null,
            // Zuletzt geübte Liste pro Sprache, für «Weiter üben»
@@ -204,6 +205,7 @@ const PAUSE_TAGE = [0, 1, 3, 7, 14, 30];   // Pause nach Erreichen der Stufe
 const STUFE_SITZT = 4;
 const MAX_STUFE = 5;
 const NEU_PRO_TAG = 10;                    // neue Wörter pro Tag in «Heute fällig»
+const HEUTE_PRO_TAG = 25;                  // Wörter pro Tag und Sprache in «Heute fällig», neue eingeschlossen
 const MIT_LERNSTAND = ['vokabeln', 'artikel', 'konjugation'];
 // Ab dieser Stufe steigt ein Wort nur noch, wenn es Deutsch→Fremdsprache
 // gewusst wurde. Fremdsprache→Deutsch hält es dann auf seiner Stufe.
@@ -232,6 +234,14 @@ function standVon(deckId, k) {
   return (daten.woerter[deckId] || {})[k] || null;
 }
 
+// Wörter, die heute in «Heute fällig» schon dran waren (pro Sprache) –
+// für das Tageslimit. Schlüssel: Liste + Wort.
+function heuteSchluessel(deckId, k) { return deckId + '|' + k; }
+function heuteGeuebt(sprache) {
+  const t = daten.tagesHeute;
+  return new Set(t && t.tag === heuteTag() ? (t[sprache] || []) : []);
+}
+
 // Neue Wörter, die «Heute fällig» heute in dieser Sprache schon gebracht hat
 function neuHeute(sprache) {
   const t = daten.tagesNeu;
@@ -243,6 +253,15 @@ function neuHeute(sprache) {
 function lerne(k, richtig) {
   if (!hatLernstand(alleDecks[k.deckId])) return null;
   const heute = heuteTag();
+  if (aktuell.deck && aktuell.deck.typ === 'heute') {
+    // Fürs Tageslimit merken; ein Wort zählt nur einmal, auch wenn es nochmals kommt
+    const sp = aktuell.deck.sprache;
+    const t = daten.tagesHeute && daten.tagesHeute.tag === heute ? daten.tagesHeute : { tag: heute };
+    const s = heuteSchluessel(k.deckId, k.schluessel);
+    t[sp] = t[sp] || [];
+    if (!t[sp].includes(s)) t[sp].push(s);
+    daten.tagesHeute = t;
+  }
   const deckStand = daten.woerter[k.deckId] || (daten.woerter[k.deckId] = {});
   const alt = deckStand[k.schluessel];
   const w = alt || { s: 0, f: heute };
@@ -342,14 +361,25 @@ function neueEintraege(max, sprache) {
   return raus;
 }
 
-// Die Runde «Heute fällig»: zuerst Fälliges (am längsten Wartendes voran),
-// dann mit neuen Wörtern auffüllen
+// Die Runde «Heute fällig»: höchstens HEUTE_PRO_TAG Wörter pro Tag und
+// Sprache. Zuerst Fälliges (am längsten Wartendes voran), dann mit neuen
+// Wörtern auffüllen. Was heute schon dran war und wieder fällig ist (falsch
+// beantwortet), kommt nochmals, ohne nochmals zu zählen. Der Rest wartet.
 function heuteEintraege(sprache) {
+  const schon = heuteGeuebt(sprache);
+  const frei = Math.max(0, HEUTE_PRO_TAG - schon.size);
+  const istSchon = e => schon.has(heuteSchluessel(e.deck.id, schluessel(e.eintrag)));
   const faellig = faelligeEintraege(heuteTag(), sprache)
-    .sort((a, b) => a.stand.f - b.stand.f || a.stand.s - b.stand.s)
-    .slice(0, LIMIT);
-  const platz = Math.min(LIMIT - faellig.length, NEU_PRO_TAG - neuHeute(sprache));
-  return faellig.concat(neueEintraege(platz, sprache));
+    .sort((a, b) => a.stand.f - b.stand.f || a.stand.s - b.stand.s);
+  const nochmals = faellig.filter(istSchon);
+  const wiederholen = faellig.filter(e => !istSchon(e)).slice(0, frei);
+  const platz = Math.min(frei - wiederholen.length, NEU_PRO_TAG - neuHeute(sprache));
+  return nochmals.concat(wiederholen, neueEintraege(platz, sprache));
+}
+
+// Ist die Tagesportion geschafft, obwohl noch Wörter fällig wären?
+function heuteVoll(sprache) {
+  return heuteGeuebt(sprache).size >= HEUTE_PRO_TAG && faelligeEintraege(heuteTag(), sprache).length > 0;
 }
 
 // ════════════════════════════════════════════════════════════
@@ -1007,8 +1037,9 @@ function zeigeHeute() {
     return;
   }
 
-  const faellig = faelligeEintraege(heuteTag(), sp).length;
-  const neu = heuteEintraege(sp).filter(e => !e.stand).length;
+  const runde = heuteEintraege(sp);
+  const faellig = runde.filter(e => e.stand).length;
+  const neu = runde.length - faellig;
   if (faellig + neu > 0) {
     const teile = [];
     if (faellig) teile.push(`${wortZahl(faellig)} zum Wiederholen`);
@@ -1018,7 +1049,8 @@ function zeigeHeute() {
   }
 
   // Bewusst ohne «morgen»: drei Übungstage pro Woche genügen
-  karte('🌙', 'Für heute alles geübt', 'bis zum nächsten Mal', false);
+  if (heuteVoll(sp)) karte('🌙', 'Tagesportion geschafft', `${HEUTE_PRO_TAG} Wörter geübt – bis zum nächsten Mal`, false);
+  else karte('🌙', 'Für heute alles geübt', 'bis zum nächsten Mal', false);
 }
 
 // Umschalter Französisch / Englisch

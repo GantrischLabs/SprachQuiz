@@ -9,6 +9,7 @@
 //  - Sterne und «schon einmal richtig»: kommen nur dazu → vereinigen
 //  - Zähler (XP, Übungstage fürs Wochenziel, neue Wörter pro Tag,
 //    gespielte Runden): Basis + Zuwachs hier + Zuwachs dort
+//  - Heute in «Heute fällig» geübte Wörter (Tageslimit): vereinigen
 //  - Lernstufe pro Wort und «Meine Fehler»: übernehmen, was ein
 //    Gerät geändert hat. Dasselbe Wort auf beiden geübt → die
 //    tiefere Stufe gewinnt, das Wort kommt also eher nochmals.
@@ -127,6 +128,20 @@
     return r;
   }
 
+  // Heute in «Heute fällig» geübte Wörter (Tageslimit): { tag, fr: [...], en: [...] }.
+  // Gleicher Tag: beide Geräte vereinigen, sonst gilt der spätere Tag.
+  function tagesHeute(b, l, s) {
+    l = istObjekt(l) ? l : { tag: 0 };
+    s = istObjekt(s) ? s : { tag: 0 };
+    if (zahl(l.tag) !== zahl(s.tag)) return kopie(zahl(l.tag) > zahl(s.tag) ? l : s);
+    const r = { tag: l.tag };
+    new Set([...Object.keys(l), ...Object.keys(s)]).forEach(k => {
+      if (k === 'tag') return;
+      r[k] = [...new Set([...(Array.isArray(l[k]) ? l[k] : []), ...(Array.isArray(s[k]) ? s[k] : [])])];
+    });
+    return r;
+  }
+
   // «Meine Fehler»: Liste von { d: Liste, k: Wort }. Neu Gemerktes kommt
   // dazu, was auf einem Gerät erledigt wurde, fällt weg. Höchstens max Einträge.
   function fehlerListe(b, l, s, max) {
@@ -195,6 +210,9 @@
           break;
         case 'tagesNeu':
           v = tagesNeu(b.tagesNeu, l.tagesNeu, s.tagesNeu);
+          break;
+        case 'tagesHeute':
+          v = tagesHeute(b.tagesHeute, l.tagesHeute, s.tagesHeute);
           break;
         case 'decks':
           v = proSchluessel(b.decks, l.decks, s.decks, deckStand);
