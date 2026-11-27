@@ -27,6 +27,35 @@ Solange `config.js` leer ist, läuft das Quiz genau wie bisher. Der Fortschritt 
    - Der Publishable Key darf öffentlich sein. Den **Secret Key** (`sb_secret_…`) und die alten Legacy-Keys (`anon`, `service_role`) **nicht** verwenden – die alten werden Ende 2026 abgeschaltet, der Secret Key umgeht alle Rechte.
 5. **Wach halten:** Gratis-Projekte pausieren nach 7 Tagen ohne Zugriff. Gerade in den Ferien kann das passieren. Der Workflow [`supabase-wach-halten.yml`](../.github/workflows/supabase-wach-halten.yml) fragt die Datenbank zweimal pro Woche an. Unter **Actions** einmal manuell starten (*Run workflow*) und prüfen, ob er grün wird.
 
+## Stand zurücksetzen (Rollback)
+
+Vor jeder Übungssitzung merkt sich die Datenbank den bisherigen Stand eines Kindes (`progress_history`). Als Sitzung gilt das erste Hochladen nach mindestens 10 ruhigen Minuten. Die Versionen bleiben 30 Tage. So lässt sich zum Beispiel ein Test im Profil eines Kindes rückgängig machen.
+
+**Einmalig:** Nach dem Update [`setup.sql`](setup.sql) nochmals im **SQL Editor** laufen lassen.
+
+**Zurücksetzen** im **SQL Editor**:
+
+1. Versionen eines Kindes anzeigen. Den Namen anpassen:
+   ```sql
+   SELECT
+   	h.id,
+   	h.saved_at AT TIME ZONE 'Europe/Zurich'	AS stand_vor,
+   	h.data -> 'xp'							AS xp
+   FROM public.progress_history	AS h
+   JOIN public.profiles			AS p ON p.id = h.profile_id
+   WHERE p.name = 'Name'
+   ORDER BY h.saved_at DESC
+   LIMIT 20;
+   ```
+   `stand_vor` ist der Zeitpunkt, an dem die Sitzung danach begann. Die Version zeigt den Stand unmittelbar davor.
+2. Die passende `id` zurückspielen:
+   ```sql
+   SELECT public.progress_restore(123);
+   ```
+3. Alle Geräte übernehmen diesen Stand beim nächsten Öffnen unverändert. Was ein Gerät seit dem letzten Abgleich noch nicht hochgeladen hat, wird dabei verworfen.
+
+Auch der Rollback selbst lässt sich rückgängig machen: Der Stand davor liegt als neueste Version im Verlauf. Die App selbst kann weder den Verlauf lesen noch zurücksetzen, das geht nur im SQL Editor.
+
 ## Wer darf ein Konto erstellen?
 
 - **Standard:** Jeder mit dem Link kann über *Konto erstellen* ein Eltern-Konto anlegen und bekommt eine Bestätigungs-Mail.

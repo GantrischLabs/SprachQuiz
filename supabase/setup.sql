@@ -5,6 +5,7 @@
 
 		History:
 		Date		Who			Change description
+		27.11.26	Marco		Add progress history (one version per practice session, kept 30 days) and rollback with progress_restore()
 		#########################################################################################################################################################  */
 
 -- Run once in the Supabase SQL editor. The script is idempotent and can be run again after changes.
@@ -67,3 +68,99 @@ AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION public.ping() TO anon;
+
+
+/* ---------------- History and rollback ---------------- */
+
+-- Raised by every rollback; a device that sees a higher number drops its own copy instead of merging its changes back in
+ALTER TABLE public.progress ADD COLUMN IF NOT EXISTS rollback_no INTEGER NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS public.progress_history (
+	id				BIGINT		GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	profile_id		UUID		NOT NULL REFERENCES public.profiles (id) ON DELETE CASCADE,
+	data			JSONB		NOT NULL,
+	-- The version was the current progress until this moment
+	saved_at		TIMESTAMPTZ	NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS ix_progress_history_profile_id ON public.progress_history (profile_id, saved_at DESC);
+
+-- Only the trigger and the SQL editor touch the history; the app has no access
+ALTER TABLE public.progress_history ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.progress_history FROM anon, authenticated;
+
+-- Keeps the progress as it was before each practice session: the first upload after 10 quiet minutes stores the previous version
+CREATE OR REPLACE FUNCTION public.progress_keep_history()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+	-- The app uploads every few seconds during a round, so only the start of a session is worth a version; rollbacks store their own version
+	IF NEW.data IS DISTINCT FROM OLD.data
+		AND NEW.rollback_no = OLD.rollback_no
+		AND OLD.updated_at < NOW() - INTERVAL '10 minutes'
+	THEN
+		INSERT INTO public.progress_history (profile_id, data, saved_at)
+		VALUES (OLD.profile_id, OLD.data, NOW());
+
+		-- Housekeeping: versions older than 30 days are no longer needed
+		DELETE FROM public.progress_history
+		WHERE profile_id = OLD.profile_id
+			AND saved_at < NOW() - INTERVAL '30 days';
+	END IF;
+	RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_progress_keep_history ON public.progress;
+CREATE TRIGGER trg_progress_keep_history
+	BEFORE UPDATE ON public.progress
+	FOR EACH ROW EXECUTE FUNCTION public.progress_keep_history();
+
+-- Rollback, run in the SQL editor: SELECT public.progress_restore(<history id>); see supabase/README.md
+CREATE OR REPLACE FUNCTION public.progress_restore(p_history_id BIGINT)
+RETURNS TEXT
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+DECLARE
+	v_profile_id	UUID;
+	v_data			JSONB;
+	v_saved_at		TIMESTAMPTZ;
+BEGIN
+	SELECT
+		h.profile_id,
+		h.data,
+		h.saved_at
+	INTO v_profile_id, v_data, v_saved_at
+	FROM public.progress_history AS h
+	WHERE h.id = p_history_id;
+
+	IF NOT FOUND THEN
+		RAISE EXCEPTION 'History entry % does not exist', p_history_id;
+	END IF;
+
+	-- Keep the current progress as a version as well, so the rollback itself can be undone
+	INSERT INTO public.progress_history (profile_id, data)
+	SELECT
+		pr.profile_id,
+		pr.data
+	FROM public.progress AS pr
+	WHERE pr.profile_id = v_profile_id;
+
+	-- The higher rollback number tells every device to take this version as it is
+	UPDATE public.progress
+	SET	data		= v_data,
+		updated_at	= NOW(),
+		rollback_no	= rollback_no + 1
+	WHERE profile_id = v_profile_id;
+
+	RETURN 'Progress restored to the version before ' || to_char(v_saved_at AT TIME ZONE 'Europe/Zurich', 'DD.MM.YYYY HH24:MI');
+END;
+$$;
+
+-- Supabase would otherwise offer both functions to the app as RPC endpoints
+REVOKE ALL ON FUNCTION public.progress_keep_history() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.progress_restore(BIGINT) FROM PUBLIC, anon, authenticated;
